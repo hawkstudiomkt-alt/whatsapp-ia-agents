@@ -1,0 +1,291 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum InstanceStatus {
+  CONNECTED
+  DISCONNECTED
+  PENDING
+}
+
+enum AgentStatus {
+  ACTIVE
+  PAUSED
+  STOPPED
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+  TRANSFERRED
+}
+
+enum LeadStatus {
+  NEW
+  QUALIFIED
+  DISQUALIFIED
+  CONVERTED
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum HumanAttendeeStatus {
+  AVAILABLE
+  BUSY
+  OFFLINE
+}
+
+enum DischargeStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum FollowUpType {
+  REMINDER
+  NO_RESPONSE
+  CUSTOM
+}
+
+enum FollowUpStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum IntegrationType {
+  GOOGLE_CALENDAR
+  NOTION
+  OTHER_CRM
+}
+
+model Instance {
+  id          String   @id @default(uuid())
+  name        String
+  phoneNumber String   @unique
+  status      InstanceStatus @default(PENDING)
+  webhookUrl  String?
+  apiKey      String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  agents      Agent[]
+  messages    Message[]
+  conversations Conversation[]
+  integrations Integration[]
+  leads       Lead[]
+  adminPhone  String?
+
+  @@map("instances")
+}
+
+model Agent {
+  id           String     @id @default(uuid())
+  name         String
+  instructions String     @db.Text
+  systemPrompt String     @db.Text
+  status       AgentStatus @default(ACTIVE)
+
+  // Configurações de personalidade
+  tone         String     @default("friendly")
+  language     String     @default("pt-BR")
+
+  // Modelo e Segurança
+  aiModel      String?    @default("openai/gpt-4o-mini")
+  guardrails   String?    @db.Text
+
+  // Controle de intervenção humana
+  humanInterventionEnabled Boolean @default(true)
+
+  instanceId   String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  instance     Instance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  discharges   Discharge[]
+  leads        Lead[]
+  transcriptionEnabled Boolean @default(false)
+  transcriptionModel   String  @default("google/gemini-flash-1.5")
+
+  @@map("agents")
+}
+
+model Conversation {
+  id           String            @id @default(uuid())
+  phone        String
+  agentId      String
+  status       ConversationStatus @default(ACTIVE)
+
+  // Controle de intervenção humana
+  isHumanHandling Boolean      @default(false)
+  humanInterventionAt DateTime?
+  lastHumanMessageAt DateTime?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  agent        Agent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  lead         Lead?
+  messages     Message[]
+  instanceId   String
+  instance     Instance          @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  humanAttendeeAssignment HumanAttendeeAssignment?
+
+  @@unique([instanceId, phone])
+  @@map("conversations")
+}
+
+model Lead {
+  id           String     @id @default(uuid())
+  phone        String
+  name         String?
+  email        String?
+  status       LeadStatus @default(NEW)
+  score        Int?
+  notes        String?    @db.Text
+
+  // Designação para atendente humano
+  assignedToHuman Boolean  @default(false)
+  humanAttendeeId String?
+
+  // Relações Multi-Tenant
+  instanceId   String
+  instance     Instance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  agentId      String?
+  agent        Agent?     @relation(fields: [agentId], references: [id])
+
+  conversationId String?  @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  humanAttendeeAssignment HumanAttendeeAssignment?
+  followups    LeadFollowUp[]
+
+  @@unique([instanceId, phone])
+  @@map("leads")
+}
+
+model Integration {
+  id           String          @id @default(uuid())
+  instanceId   String
+  type         IntegrationType
+  config       Json            // Armazena tokens, IDs, etc.
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  instance     Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@unique([instanceId, type])
+  @@map("integrations")
+}
+
+model LeadFollowUp {
+  id           String         @id @default(uuid())
+  leadId       String
+  type         FollowUpType   @default(REMINDER)
+  status       FollowUpStatus @default(PENDING)
+  scheduledFor DateTime
+  executedAt   DateTime?
+  notes        String?        @db.Text
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("lead_followups")
+}
+
+// Atendentes humanos disponíveis
+model HumanAttendee {
+  id         String             @id @default(uuid())
+  name       String
+  email      String             @unique
+  phone      String
+  status     HumanAttendeeStatus @default(AVAILABLE)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  assignments HumanAttendeeAssignment[]
+
+  @@map("human_attendees")
+}
+
+model HumanAttendeeAssignment {
+  id            String    @id @default(uuid())
+  conversationId String   @unique
+  leadId        String?   @unique
+  attendeeId    String
+  status        String    @default("ASSIGNED")
+  notifiedAt    DateTime?
+  takenAt       DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  lead          Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  attendee      HumanAttendee @relation(fields: [attendeeId], references: [id], onDelete: Cascade)
+
+  @@map("human_attendee_assignments")
+}
+
+model Discharge {
+  id          String   @id @default(uuid())
+  agentId     String
+  name        String
+  phoneList   String[]
+  message     String   @db.Text
+  status      DischargeStatus @default(PENDING)
+  delaySeconds Int     @default(30)
+  scheduledFor DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  totalSent   Int      @default(0)
+  totalFailed Int      @default(0)
+  useAI       Boolean  @default(false)
+  results     Json     @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("discharges")
+}
+
+model Message {
+  id           String          @id @default(uuid())
+  content      String          @db.Text
+  direction    MessageDirection
+  timestamp    DateTime
+  createdAt    DateTime        @default(now())
+  conversationId String
+  conversation Conversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  instanceId   String
+  instance     Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([instanceId, timestamp])
+  @@map("messages")
+}
+
+model Analytics {
+  id         String   @id @default(uuid())
+  date       DateTime @db.Date
+  instanceId String
+  messagesSent Int @default(0)
+  messagesReceived Int @default(0)
+  conversationsStarted Int @default(0)
+  conversationsClosed Int @default(0)
+  leadsQualified Int @default(0)
+  leadsConverted Int @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([date, instanceId])
+  @@map("analytics")
+}
