@@ -44,7 +44,15 @@ export const messageService = {
   async sendWhatsAppMessage(instanceId: string, phoneNumber: string, content: string): Promise<void> {
     const number = phoneNumber.replace(/\D/g, '');
 
-    await evolutionRequest(instanceId, 'message/sendText', {
+    // Busca o nome da instância no banco
+    const instance = await prisma.instance.findUnique({
+      where: { id: instanceId },
+      select: { name: true },
+    });
+
+    if (!instance) throw new Error('Instância não encontrada');
+
+    await evolutionRequest(instance.name, `message/sendText/${instance.name}`, {
       method: 'POST',
       body: JSON.stringify({
         number,

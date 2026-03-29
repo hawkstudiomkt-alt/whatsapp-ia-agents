@@ -26,7 +26,7 @@ export const instanceController = {
       request.log.error(error);
       const logPath = path.join(process.cwd(), 'backend_error.log');
       fs.appendFileSync(logPath, `[${new Date().toISOString()}] CONTROLLER ERROR: ${error.message}\nSTACK: ${error.stack}\n\n`);
-      
+
       if (error instanceof z.ZodError) {
         return reply.status(400).send({ error: 'Erro de validação', details: error.errors });
       }
@@ -34,14 +34,14 @@ export const instanceController = {
       // Handle Prisma Unique Constraint
       if (error.code === 'P2002') {
         const field = error.meta?.target?.[0] || 'campo';
-        return reply.status(409).send({ 
-          error: `Este ${field === 'phoneNumber' ? 'número de telefone' : field} já está em uso.` 
+        return reply.status(409).send({
+          error: `Este ${field === 'phoneNumber' ? 'número de telefone' : field} já está em uso.`
         });
       }
 
-      return reply.status(500).send({ 
+      return reply.status(500).send({
         error: 'Erro interno ao criar instância',
-        message: error.message 
+        message: error.message
       });
     }
   },
@@ -89,11 +89,15 @@ export const instanceController = {
     const { id } = request.params as { id: string };
 
     try {
-      await instanceService.connectInstance(id);
-      return reply.send({ message: 'QR Code generated' });
+      const qrData = await instanceService.connectInstance(id);
+      return reply.send({
+        message: 'QR Code gerado com sucesso',
+        base64: qrData.base64,
+        countDown: qrData.countDown,
+      });
     } catch (error: unknown) {
       return reply.status(500).send({
-        error: 'Failed to generate QR Code',
+        error: 'Falha ao gerar QR Code',
         details: error instanceof Error ? error.message : String(error),
       });
     }

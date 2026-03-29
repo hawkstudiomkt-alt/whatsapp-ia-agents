@@ -45,11 +45,11 @@ export interface Lead {
   status: 'NEW' | 'QUALIFIED' | 'DISQUALIFIED' | 'CONVERTED';
   score?: number;
   notes?: string;
-  conversation?: { 
-    id: string; 
-    phone: string; 
+  conversation?: {
+    id: string;
+    phone: string;
     instanceId: string;
-    agent?: { name: string } 
+    agent?: { name: string }
   };
   instance?: { name: string };
   agent?: { name: string };
@@ -113,16 +113,16 @@ export const instancesApi = {
   update: (id: string, data: Partial<Instance>) =>
     api.put<Instance>(`/instances/${id}`, data).then(r => r.data),
   delete: (id: string) => api.delete(`/instances/${id}`),
-  generateQR: (id: string) => api.post(`/instances/${id}/qr`),
+  generateQR: (id: string) => api.post<{ base64: string; countDown: number; message: string }>(`/instances/${id}/qr`).then(r => r.data),
 };
 
 export const agentsApi = {
   findAll: () => api.get<Agent[]>('/agents').then(r => r.data),
   findById: (id: string) => api.get<Agent>(`/agents/${id}`).then(r => r.data),
-  create: (data: { 
-    name: string; 
-    instructions: string; 
-    systemPrompt: string; 
+  create: (data: {
+    name: string;
+    instructions: string;
+    systemPrompt: string;
     instanceId: string;
     aiModel?: string;
     guardrails?: string;
@@ -137,12 +137,12 @@ export const leadsApi = {
   findAll: (status?: string) =>
     api.get<Lead[]>('/leads' + (status ? `?status=${status}` : '')).then(r => r.data),
   findById: (id: string) => api.get<Lead>(`/leads/${id}`).then(r => r.data),
-  create: (data: { 
-    phone: string; 
-    name?: string; 
-    email?: string; 
-    instanceId?: string; 
-    agentId?: string; 
+  create: (data: {
+    phone: string;
+    name?: string;
+    email?: string;
+    instanceId?: string;
+    agentId?: string;
   }) =>
     api.post<Lead>('/leads', data).then(r => r.data),
   update: (id: string, data: Partial<Lead>) =>
@@ -150,11 +150,11 @@ export const leadsApi = {
 };
 
 export const integrationsApi = {
-  findByInstance: (instanceId: string) => 
+  findByInstance: (instanceId: string) =>
     api.get<Integration[]>(`/instances/${instanceId}/integrations`).then(r => r.data),
   upsert: (data: { instanceId: string; type: string; config: any; isActive?: boolean }) =>
     api.post<Integration>('/integrations', data).then(r => r.data),
-  delete: (instanceId: string, type: string) => 
+  delete: (instanceId: string, type: string) =>
     api.delete(`/instances/${instanceId}/integrations/${type}`),
 };
 

@@ -3,24 +3,37 @@ import { instanceService } from '../services/instance.service';
 import { conversationService } from '../services/conversation.service';
 import { EvolutionWebhook } from '../types';
 
-/**
- * Webhook para receber mensagens da Evolution API
- * Deve ser configurado na Evolution API para cada instância
- */
 export const webhookController = {
   async handle(request: FastifyRequest, reply: FastifyReply) {
-    const body = request.body as EvolutionWebhook & {
-      instanceId?: string;
-      apiKey?: string;
-    };
+    const { apiKey } = request.params as { apiKey?: string };
+    const body = request.body as EvolutionWebhook & { instanceId?: string };
 
-    // Autenticação via API Key
-    if (body.apiKey) {
-      const instance = await instanceService.findByApiKey(body.apiKey);
-      if (!instance) {
-        return reply.status(401).send({ error: 'Invalid API key' });
+    // Autentica pela API Key na URL
+    let instance = null;
+    if (apiKey) {
+      instance = await instanceService.findByApiKey(apiKey);
+    }
+
+    // Fallback: tenta pelo nome da instância no body
+    if (!instance && body.instance) {
+      instance = await instanceService.findByName(body.instance);
+    }
+
+    if (!instance) {
+      return reply.status(200).send({ received: true, warning: 'Instance not found' });
+    }
+
+    body.instanceId = instance.id;
+
+    // Trata atualização de conexão
+    if (body.event === 'connection.update') {
+      const status = body.data?.state;
+      if (status === 'open') {
+        await instanceService.updateStatus(instance.id, 'CONNECTED');
+      } else if (status === 'close') {
+        await instanceService.updateStatus(instance.id, 'DISCONNECTED');
       }
-      body.instanceId = instance.id;
+      return reply.status(200).send({ received: true });
     }
 
     // Ignora mensagens enviadas pelo próprio número
@@ -28,25 +41,34 @@ export const webhookController = {
       return reply.status(200).send({ received: true });
     }
 
-    // Processa apenas mensagens de texto
+    // Ignora mensagens de grupos
+    if (body.data?.key?.remoteJid?.endsWith('@g.us')) {
+      return reply.status(200).send({ received: true, warning: 'Group message ignored' });
+    }
+
+    // Ignora mensagens de broadcast/status
+    if (body.data?.key?.remoteJid === 'status@broadcast') {
+      return reply.status(200).send({ received: true });
+    }
+
+    // Processa apenas mensagens
     if (body.event !== 'messages.upsert') {
       return reply.status(200).send({ received: true });
     }
 
     const content =
-      body.data.message?.conversation ||
-      body.data.message?.extendedTextMessage?.text ||
+      body.data?.message?.conversation ||
+      body.data?.message?.extendedTextMessage?.text ||
       '';
 
-    if (!content || !body.instanceId) {
-      return reply.status(400).send({ error: 'Missing content or instanceId' });
+    if (!content) {
+      return reply.status(200).send({ received: true });
     }
 
     try {
-      // Processa a mensagem e gera resposta com IA
       const result = await conversationService.processIncomingMessage({
-        instanceId: body.instanceId,
-        phoneNumber: body.data.key.remoteJid.replace(/\D/g, ''),
+        instanceId: instance.id,
+        phoneNumber: body.data.key.remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, ''),
         content,
         pushName: body.data.pushName,
       });
@@ -57,20 +79,13 @@ export const webhookController = {
         hasResponse: !!result.response,
       });
     } catch (error: unknown) {
-      console.error('Error processing webhook:', error);
+      console.error('Erro no webhook:', error);
 
-      // Se não houver agente ativo, apenas registra a mensagem
       if (error instanceof Error && error.message === 'Nenhum agente ativo nesta instância') {
-        return reply.status(200).send({
-          received: true,
-          warning: 'No active agent for this instance',
-        });
+        return reply.status(200).send({ received: true, warning: 'No active agent' });
       }
 
-      return reply.status(500).send({
-        error: 'Failed to process message',
-        details: error instanceof Error ? error.message : String(error),
-      });
+      return reply.status(200).send({ received: true, error: 'Processing failed' });
     }
   },
 };

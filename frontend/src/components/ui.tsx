@@ -50,7 +50,9 @@ export function Button({
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       className={`${variants[variant]} ${sizes[size]} rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 ${className}`}
-      {...props}
+      onClick={props.onClick}
+      disabled={props.disabled}
+      type={props.type}
     >
       {children}
     </motion.button>

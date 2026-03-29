@@ -26,6 +26,12 @@ export const instanceService = {
     });
   },
 
+  async findByName(name: string): Promise<Instance | null> {
+    return prisma.instance.findFirst({
+      where: { name },
+    });
+  },
+
   async findAll(): Promise<Instance[]> {
     return prisma.instance.findMany({
       include: {
@@ -83,18 +89,47 @@ export const instanceService = {
     });
   },
 
-  async connectInstance(instanceId: string): Promise<void> {
-    // Gera QR Code via Evolution API
-    const response = await evolutionRequest<{
-      base64: string;
-      countDown: number;
-    }>(instanceId, 'instance/connect', {
-      method: 'POST',
+  async connectInstance(instanceId: string): Promise<{ base64: string; countDown: number }> {
+    const instance = await prisma.instance.findUnique({
+      where: { id: instanceId },
     });
 
-    // O QR Code em base64 pode ser enviado para o frontend
-    console.log('QR Code gerado:', response);
+    if (!instance) throw new Error('Instância não encontrada');
+
+    // Cria a instância na Evolution API
+    try {
+      await evolutionRequest(instance.name, 'instance/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          instanceName: instance.name,
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+        }),
+      });
+    } catch (e: any) {
+      // Se já existe, ignora. Qualquer outro erro, lança.
+      if (!e.message?.includes('already')) {
+        console.log('Aviso ao criar instância na Evolution:', e.message);
+      }
+    }
+
+
+    const response = await evolutionRequest<{ pairingCode: string; code: string; base64: string }>(
+      instance.name,
+      `instance/connect/${instance.name}`,
+      { method: 'GET' }
+    );
+
+    console.log('RESPOSTA EVOLUTION:', JSON.stringify(response, null, 2));
+
+    if (!response.base64) {
+      throw new Error(`QR Code não retornado pela Evolution. Resposta: ${JSON.stringify(response)}`);
+    }
+
+    return { base64: response.base64, countDown: 30 };
+
   },
+
 
   async updateStatus(instanceId: string, status: InstanceStatus): Promise<Instance> {
     return prisma.instance.update({
@@ -103,3 +138,4 @@ export const instanceService = {
     });
   },
 };
+
