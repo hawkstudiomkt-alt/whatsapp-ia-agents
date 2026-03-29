@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { instanceService } from '../services/instance.service';
-import { conversationService } from '../services/conversation.service';
+import { messageService } from '../services/message.service';
+import { prisma } from '../config/database';
 import { EvolutionWebhook } from '../types';
 
 export const webhookController = {
@@ -23,8 +24,6 @@ export const webhookController = {
       return reply.status(200).send({ received: true, warning: 'Instance not found' });
     }
 
-    body.instanceId = instance.id;
-
     // Trata atualização de conexão
     if (body.event === 'connection.update') {
       const status = body.data?.state;
@@ -46,7 +45,7 @@ export const webhookController = {
       return reply.status(200).send({ received: true, warning: 'Group message ignored' });
     }
 
-    // Ignora mensagens de broadcast/status
+    // Ignora status/broadcast
     if (body.data?.key?.remoteJid === 'status@broadcast') {
       return reply.status(200).send({ received: true });
     }
@@ -66,25 +65,75 @@ export const webhookController = {
     }
 
     try {
-      const result = await conversationService.processIncomingMessage({
-        instanceId: instance.id,
-        phoneNumber: body.data.key.remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, ''),
+      const phoneNumber = body.data.key.remoteJid
+        .replace('@s.whatsapp.net', '')
+        .replace(/\D/g, '');
+
+      const pushName = body.data.pushName;
+
+      // Busca ou cria lead
+      let lead = await prisma.lead.findFirst({
+        where: { instanceId: instance.id, phone: phoneNumber },
+      });
+
+      if (!lead) {
+        lead = await prisma.lead.create({
+          data: {
+            phone: phoneNumber,
+            name: pushName,
+            instanceId: instance.id,
+            status: 'NEW',
+          },
+        });
+      }
+
+      // Busca ou cria conversa
+      let conversation = await prisma.conversation.findFirst({
+        where: { instanceId: instance.id, phone: phoneNumber, status: 'ACTIVE' },
+        include: { agent: true },
+      });
+
+      if (!conversation) {
+        const activeAgent = await prisma.agent.findFirst({
+          where: { instanceId: instance.id, status: 'ACTIVE' },
+        });
+
+        if (!activeAgent) {
+          return reply.status(200).send({ received: true, warning: 'No active agent' });
+        }
+
+        conversation = await prisma.conversation.create({
+          data: {
+            phone: phoneNumber,
+            agentId: activeAgent.id,
+            instanceId: instance.id,
+            status: 'ACTIVE',
+          },
+          include: { agent: true },
+        });
+      }
+
+      // Salva mensagem recebida
+      await messageService.create({
         content,
-        pushName: body.data.pushName,
+        direction: 'INBOUND',
+        conversationId: conversation.id,
+        instanceId: instance.id,
+        timestamp: new Date(),
       });
 
       return reply.status(200).send({
         received: true,
-        conversationId: result.conversationId,
-        hasResponse: !!result.response,
+        conversationId: conversation.id,
+        leadId: lead.id,
+        instanceId: instance.id,
+        agentId: conversation.agentId,
+        phoneNumber,
+        content,
       });
+
     } catch (error: unknown) {
       console.error('Erro no webhook:', error);
-
-      if (error instanceof Error && error.message === 'Nenhum agente ativo nesta instância') {
-        return reply.status(200).send({ received: true, warning: 'No active agent' });
-      }
-
       return reply.status(200).send({ received: true, error: 'Processing failed' });
     }
   },
