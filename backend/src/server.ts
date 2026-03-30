@@ -14,7 +14,7 @@ const app = Fastify({
 
 // Plugins
 app.register(cors, {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: true, // Aceita qualquer origem por enquanto
   credentials: true,
 });
 
@@ -24,7 +24,7 @@ app.register(routes, { prefix: '/api' });
 // Error handler global
 app.setErrorHandler((error: any, request, reply) => {
   app.log.error(error);
-  
+
   // Log to disk for debugging
   const logPath = path.join(process.cwd(), 'backend_error.log');
   const logMsg = `[${new Date().toISOString()}] ERROR: ${error.message}\nSTACK: ${error.stack}\n\n`;
