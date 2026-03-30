@@ -1,9 +1,6 @@
 import { prisma } from '../config/database';
-import { Discharge, DischargeStatus } from '@prisma/client';
+import { Discharge, DischargeStatus, MessageDirection } from '@prisma/client';
 import { messageService } from './message.service';
-import { conversationService } from './conversation.service';
-import { aiService } from './ai.service';
-import { MessageDirection } from '@prisma/client';
 
 interface CreateDischargeDTO {
   agentId: string;
@@ -70,52 +67,54 @@ export const dischargeService = {
       },
     });
 
-    // Processa os disparos em fila
     await this.processDischarge(discharge);
   },
 
   async processDischarge(discharge: Discharge & { agent: any }): Promise<void> {
-    const { phoneList, message, delaySeconds, agent, useAI } = discharge;
+    const { phoneList, message, delaySeconds, agent } = discharge;
     const results: any[] = [];
 
     for (let i = 0; i < phoneList.length; i++) {
       const phone = phoneList[i];
-      let finalMessage = message;
       let statusStr = 'SENT';
 
       try {
-        // Cria Conversa/Lead para trazer pro painel central
-        const conversation = await conversationService.findOrCreateConversation({
-          instanceId: agent.instanceId,
-          phoneNumber: phone
+        // Busca ou cria conversa
+        let conversation = await prisma.conversation.findFirst({
+          where: { instanceId: agent.instanceId, phone, status: 'ACTIVE' },
         });
 
-        // IA Opcional
-        if (useAI) {
-          const leadData = conversation.lead ? {
-            name: conversation.lead.name || undefined,
-            status: conversation.lead.status,
-            notes: conversation.lead.notes || undefined
-          } : undefined;
-
-          // Pede para a IA gerar texto único
-          const prompt = `Por favor, baseie-se nesta mensagem base de disparo: "${message}". Reescreva ou adapte de forma pessoal para enviar agora. Não seja longo nem explique. Apenas passe o texto.`;
-          
-          const aiResp = await aiService.generateResponse({
-             agentId: agent.id,
-             instanceId: agent.instanceId,
-             userMessage: prompt,
-             conversationHistory: [],
-             lead: leadData as any
+        if (!conversation) {
+          conversation = await prisma.conversation.create({
+            data: {
+              phone,
+              agentId: agent.id,
+              instanceId: agent.instanceId,
+              status: 'ACTIVE',
+            },
           });
+        }
 
-          if (aiResp.text && aiResp.text.trim() !== '') {
-            finalMessage = aiResp.text;
-          }
+        // Busca ou cria lead
+        let lead = await prisma.lead.findFirst({
+          where: { instanceId: agent.instanceId, phone },
+        });
+
+        if (!lead) {
+          lead = await prisma.lead.create({
+            data: {
+              phone,
+              instanceId: agent.instanceId,
+              status: 'NEW',
+            },
+          });
         }
 
         // Message Splitter
-        const messageBlocks = finalMessage.split(/\n\n+/).map(b => b.trim()).filter(b => b.length > 0);
+        const messageBlocks = message
+          .split(/\n\n+/)
+          .map(b => b.trim())
+          .filter(b => b.length > 0);
 
         for (let j = 0; j < messageBlocks.length; j++) {
           const block = messageBlocks[j];
@@ -124,46 +123,44 @@ export const dischargeService = {
             content: block,
             direction: MessageDirection.OUTBOUND,
             conversationId: conversation.id,
-            instanceId: agent.instanceId
+            instanceId: agent.instanceId,
           });
 
           await messageService.sendWhatsAppMessage(agent.instanceId, phone, block);
 
           if (j < messageBlocks.length - 1) {
-            await new Promise(r => setTimeout(r, Math.min(Math.max(block.length * 30, 1500), 4000)));
+            await new Promise(r =>
+              setTimeout(r, Math.min(Math.max(block.length * 30, 1500), 4000))
+            );
           }
         }
 
         await prisma.discharge.update({
           where: { id: discharge.id },
-          data: { totalSent: { increment: 1 } }
+          data: { totalSent: { increment: 1 } },
         });
 
       } catch (error) {
         console.error(`Erro ao enviar para ${phone}:`, error);
-        statusStr = 'FAILED/INVALID';
+        statusStr = 'FAILED';
         await prisma.discharge.update({
           where: { id: discharge.id },
-          data: { totalFailed: { increment: 1 } }
+          data: { totalFailed: { increment: 1 } },
         });
       }
 
-      // Adiciona pra auditoria visual
       results.push({ phone, status: statusStr, deliveredAt: new Date().toISOString() });
 
-      // Atualiza resultados no DB tempo real
       await prisma.discharge.update({
         where: { id: discharge.id },
-        data: { results: results }
+        data: { results },
       });
 
-      // Delay entre clientes (Evitar Ban)
       if (i < phoneList.length - 1) {
         await this.sleep(delaySeconds * 1000);
       }
     }
 
-    // Finaliza o disparo
     await prisma.discharge.update({
       where: { id: discharge.id },
       data: {
@@ -180,9 +177,7 @@ export const dischargeService = {
   async cancelDischarge(id: string): Promise<Discharge> {
     return prisma.discharge.update({
       where: { id },
-      data: {
-        status: DischargeStatus.FAILED,
-      },
+      data: { status: DischargeStatus.FAILED },
     });
   },
 };
