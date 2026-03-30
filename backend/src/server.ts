@@ -12,6 +12,13 @@ const app = Fastify({
   },
 });
 
+import jwt from '@fastify/jwt';
+
+// Após o cors:
+app.register(jwt, {
+  secret: process.env.JWT_SECRET || 'secret',
+});
+
 // Plugins
 app.register(cors, {
   origin: true, // Aceita qualquer origem por enquanto
