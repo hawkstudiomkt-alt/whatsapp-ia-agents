@@ -1,10 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-  baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: 'https://n8n-whatsapp-backend.zscidy.easypanel.host/api',
 });
 
 // Types
