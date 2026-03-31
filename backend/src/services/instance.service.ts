@@ -17,13 +17,44 @@ export const instanceService = {
   async create(data: CreateInstanceDTO): Promise<Instance> {
     const apiKey = `inst_${Math.random().toString(36).substring(2, 15)}`;
 
-    return prisma.instance.create({
+    const instance = await prisma.instance.create({
       data: {
         ...data,
         apiKey,
         status: InstanceStatus.PENDING,
       },
     });
+
+    // Configura instância e webhook automaticamente na Evolution API
+    try {
+      await evolutionRequest(instance.name, 'instance/create', {
+        method: 'POST',
+        body: JSON.stringify({
+          instanceName: instance.name,
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+        }),
+      });
+
+      await evolutionRequest(instance.name, `webhook/set/${instance.name}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          webhook: {
+            enabled: true,
+            url: `${process.env.BACKEND_URL}/api/webhook/${apiKey}`,
+            webhookByEvents: false,
+            webhookBase64: false,
+            events: ['CONNECTION_UPDATE', 'MESSAGES_UPSERT'],
+          },
+        }),
+      });
+
+      console.log(`✅ Webhook configurado para instância ${instance.name}`);
+    } catch (e: any) {
+      console.log(`⚠️ Aviso ao configurar Evolution: ${e.message}`);
+    }
+
+    return instance;
   },
 
   async findByName(name: string): Promise<Instance | null> {
@@ -96,7 +127,6 @@ export const instanceService = {
 
     if (!instance) throw new Error('Instância não encontrada');
 
-    // Cria a instância na Evolution API
     try {
       await evolutionRequest(instance.name, 'instance/create', {
         method: 'POST',
@@ -107,12 +137,10 @@ export const instanceService = {
         }),
       });
     } catch (e: any) {
-      // Se já existe, ignora. Qualquer outro erro, lança.
       if (!e.message?.includes('already')) {
         console.log('Aviso ao criar instância na Evolution:', e.message);
       }
     }
-
 
     const response = await evolutionRequest<{ pairingCode: string; code: string; base64: string }>(
       instance.name,
@@ -120,16 +148,12 @@ export const instanceService = {
       { method: 'GET' }
     );
 
-    console.log('RESPOSTA EVOLUTION:', JSON.stringify(response, null, 2));
-
     if (!response.base64) {
-      throw new Error(`QR Code não retornado pela Evolution. Resposta: ${JSON.stringify(response)}`);
+      throw new Error(`QR Code não retornado pela Evolution.`);
     }
 
     return { base64: response.base64, countDown: 30 };
-
   },
-
 
   async updateStatus(instanceId: string, status: InstanceStatus): Promise<Instance> {
     return prisma.instance.update({
@@ -138,4 +162,3 @@ export const instanceService = {
     });
   },
 };
-
