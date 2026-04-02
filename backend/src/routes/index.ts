@@ -9,6 +9,7 @@ import { dischargeController } from '../controllers/discharge.controller';
 import { followupController } from '../controllers/followup.controller';
 import { integrationController } from '../controllers/integration.controller';
 import { authController } from '../controllers/auth.controller';
+import { conversationController } from '../controllers/conversation.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
 export async function routes(app: FastifyInstance) {
@@ -74,6 +75,13 @@ export async function routes(app: FastifyInstance) {
     app.post('/followups', followupController.create.bind(followupController));
     app.get('/followups', followupController.findAll.bind(followupController));
     app.delete('/followups/:id', followupController.delete.bind(followupController));
+
+    // Conversas
+    app.get('/conversations', conversationController.findAll.bind(conversationController));
+    app.get('/conversations/:id', conversationController.findById.bind(conversationController));
+    app.get('/conversations/:id/messages', conversationController.getMessages.bind(conversationController));
+    app.post('/conversations/:id/messages', conversationController.saveOutboundMessage.bind(conversationController));
+    app.patch('/conversations/:id/status', conversationController.updateStatus.bind(conversationController));
 
     // Integrações
     app.post('/integrations', integrationController.upsert.bind(integrationController));

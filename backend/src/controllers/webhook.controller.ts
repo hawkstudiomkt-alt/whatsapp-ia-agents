@@ -87,7 +87,7 @@ export const webhookController = {
         });
       }
 
-      // Busca ou cria conversa
+      // Busca conversa ativa para este número
       let conversation = await prisma.conversation.findFirst({
         where: { instanceId: instance.id, phone: phoneNumber, status: 'ACTIVE' },
         include: { agent: true },
@@ -102,12 +102,22 @@ export const webhookController = {
           return reply.status(200).send({ received: true, warning: 'No active agent' });
         }
 
-        conversation = await prisma.conversation.create({
-          data: {
+        // Usa upsert para evitar erro de unique constraint caso exista conversa fechada
+        conversation = await prisma.conversation.upsert({
+          where: {
+            instanceId_phone: { instanceId: instance.id, phone: phoneNumber },
+          },
+          create: {
             phone: phoneNumber,
             agentId: activeAgent.id,
             instanceId: instance.id,
             status: 'ACTIVE',
+          },
+          update: {
+            status: 'ACTIVE',
+            agentId: activeAgent.id,
+            isHumanHandling: false,
+            updatedAt: new Date(),
           },
           include: { agent: true },
         });
