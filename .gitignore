@@ -87,8 +87,8 @@ jspm_packages/
 *.sqlite
 *.sqlite3
 
-# Prisma migration files (optional - comment if you want to commit migrations)
-migrations/
+# Prisma migration files - committed for production deploy
+# migrations/
 
 # IDE
 .vscode/
