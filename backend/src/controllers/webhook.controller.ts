@@ -4,6 +4,23 @@ import { messageService } from '../services/message.service';
 import { prisma } from '../config/database';
 import { EvolutionWebhook } from '../types';
 
+// Chama o n8n de forma assíncrona (fire-and-forget) — não bloqueia a resposta ao Evolution
+async function triggerN8n(payload: Record<string, unknown>) {
+  const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
+  if (!n8nWebhookUrl) return;
+
+  try {
+    await fetch(n8nWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    // Log mas não quebra o fluxo principal
+    console.error('[webhook] Falha ao chamar n8n:', err);
+  }
+}
+
 export const webhookController = {
   async handle(request: FastifyRequest, reply: FastifyReply) {
     const { apiKey } = request.params as { apiKey?: string };
@@ -132,14 +149,24 @@ export const webhookController = {
         timestamp: new Date(),
       });
 
-      return reply.status(200).send({
-        received: true,
+      // Dispara o n8n de forma assíncrona com todos os dados necessários
+      const n8nPayload = {
         conversationId: conversation.id,
         leadId: lead.id,
         instanceId: instance.id,
+        instanceName: instance.name,
         agentId: conversation.agentId,
         phoneNumber,
+        pushName,
         content,
+      };
+
+      // Não aguarda — responde ao Evolution imediatamente
+      triggerN8n(n8nPayload);
+
+      return reply.status(200).send({
+        received: true,
+        ...n8nPayload,
       });
 
     } catch (error: unknown) {
