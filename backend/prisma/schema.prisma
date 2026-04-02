@@ -102,6 +102,10 @@ model Agent {
   aiModel      String?    @default("openai/gpt-4o-mini")
   guardrails   String?    @db.Text
 
+  // Configurações de IA
+  temperature  Float      @default(0.7)
+  historyLimit Int        @default(10)
+
   // Controle de intervenção humana
   humanInterventionEnabled Boolean @default(true)
 

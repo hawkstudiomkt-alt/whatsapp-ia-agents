@@ -1,0 +1,298 @@
+{
+  "name": "WhatsApp AI Agent - Processador de Mensagens",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-ai",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Recebe Mensagem do Backend",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "whatsapp-ai-webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true }) }}",
+        "options": {}
+      },
+      "id": "respond-immediately",
+      "name": "Responde 200 ao Backend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/auth/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $env.BACKEND_ADMIN_EMAIL }}"
+            },
+            {
+              "name": "password",
+              "value": "={{ $env.BACKEND_ADMIN_PASSWORD }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auth-login",
+      "name": "Autentica no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/instances/{{ $('Recebe Mensagem do Backend').item.json.body.instanceId }}/agents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-agents",
+      "name": "Busca Agente da Instância",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/conversations/{{ $('Recebe Mensagem do Backend').item.json.body.conversationId }}/messages?limit=50",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-history",
+      "name": "Busca Histórico da Conversa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/leads/{{ $('Recebe Mensagem do Backend').item.json.body.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "get-lead",
+      "name": "Busca Dados do Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─── Dados brutos ───────────────────────────────────────────────────────────\nconst webhookData = $('Recebe Mensagem do Backend').item.json.body;\nconst agentsRaw   = $('Busca Agente da Instância').item.json;\nconst historyRaw  = $('Busca Histórico da Conversa').item.json;\nconst leadRaw     = $('Busca Dados do Lead').item.json;\n\n// ─── Agente ativo ───────────────────────────────────────────────────────────\nconst agent = Array.isArray(agentsRaw)\n  ? (agentsRaw.find(a => a.status === 'ACTIVE') || agentsRaw[0])\n  : agentsRaw;\n\nif (!agent) throw new Error('Nenhum agente encontrado para esta instância');\n\nconst historyLimit  = agent.historyLimit  || 10;\nconst temperature   = agent.temperature   ?? 0.7;\nconst model         = agent.aiModel       || 'openai/gpt-4o-mini';\n\n// ─── Dados do lead (memória de longo prazo) ──────────────────────────────────\nconst lead = leadRaw && !leadRaw.error ? leadRaw : null;\nconst leadName  = lead?.name  || webhookData.pushName || 'Usuário';\nconst leadEmail = lead?.email || null;\nconst leadNotes = lead?.notes || null;\nconst leadScore = lead?.score ?? null;\nconst leadStatus = lead?.status || null;\n\n// ─── System prompt enriquecido ───────────────────────────────────────────────\nlet systemContent = agent.systemPrompt || agent.instructions || '';\n\n// Bloco de contexto do contato (injetado automaticamente)\nlet contactContext = `\\n\\n---\\n## Contexto do Contato\\n`;\ncontactContext += `- **Nome**: ${leadName}\\n`;\nif (leadEmail)  contactContext += `- **Email**: ${leadEmail}\\n`;\nif (leadStatus) contactContext += `- **Status**: ${leadStatus}\\n`;\nif (leadScore !== null) contactContext += `- **Score**: ${leadScore}\\n`;\nif (leadNotes)  contactContext += `\\n### Memória / Notas sobre este contato:\\n${leadNotes}\\n`;\ncontactContext += `---`;\n\nsystemContent += contactContext;\n\n// Guardrails (limites e restrições do agente)\nif (agent.guardrails) {\n  systemContent += `\\n\\n## Diretrizes e Restrições\\n${agent.guardrails}`;\n}\n\n// Configurações de resposta\nsystemContent += `\\n\\n## Configurações de Resposta\\n- Idioma: ${agent.language || 'pt-BR'}\\n- Tom: ${agent.tone || 'amigável'}\\n- Responda de forma natural, sem markdown excessivo, como em uma conversa de WhatsApp.`;\n\n// ─── Histórico da conversa ───────────────────────────────────────────────────\nconst historyMessages = [];\nif (Array.isArray(historyRaw)) {\n  // Pega as últimas N mensagens excluindo a atual\n  const previous = historyRaw.slice(-(historyLimit + 1), -1);\n  for (const msg of previous) {\n    historyMessages.push({\n      role: msg.direction === 'INBOUND' ? 'user' : 'assistant',\n      content: msg.content\n    });\n  }\n}\n\n// ─── Array final de mensagens para o LLM ────────────────────────────────────\nconst messages = [\n  { role: 'system', content: systemContent },\n  ...historyMessages,\n  { role: 'user',   content: webhookData.content }\n];\n\nreturn [{\n  json: {\n    messages,\n    model,\n    temperature,\n    agentId:        agent.id,\n    agentName:      agent.name,\n    instanceName:   webhookData.instanceName,\n    phoneNumber:    webhookData.phoneNumber,\n    conversationId: webhookData.conversationId,\n    instanceId:     webhookData.instanceId\n  }\n}];"
+      },
+      "id": "build-messages",
+      "name": "Monta Contexto para IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://n8n-whatsapp-frontend.zscidy.easypanel.host"
+            },
+            {
+              "name": "X-Title",
+              "value": "WhatsApp AI Agents"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"model\": \"{{ $json.model }}\",\n  \"messages\": {{ JSON.stringify($json.messages) }},\n  \"max_tokens\": 1024,\n  \"temperature\": {{ $json.temperature }}\n}",
+        "options": {}
+      },
+      "id": "call-openrouter",
+      "name": "Chama IA (OpenRouter)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const openrouterResponse = $input.item.json;\nconst prevData = $('Monta Contexto para IA').item.json;\n\nconst aiResponse = openrouterResponse.choices?.[0]?.message?.content || '';\n\nif (!aiResponse) throw new Error('IA retornou resposta vazia');\n\nreturn [{\n  json: {\n    aiResponse,\n    instanceName:   prevData.instanceName,\n    phoneNumber:    prevData.phoneNumber,\n    conversationId: prevData.conversationId,\n    instanceId:     prevData.instanceId\n  }\n}];"
+      },
+      "id": "extract-response",
+      "name": "Extrai Resposta da IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://n8n_evolution-api:8080/message/sendText/{{ $json.instanceName }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "429683C4C977415CAAFCCE10F7D57E11"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"number\": \"{{ $json.phoneNumber }}\",\n  \"textMessage\": {\n    \"text\": {{ JSON.stringify($json.aiResponse) }}\n  }\n}",
+        "options": {}
+      },
+      "id": "send-whatsapp",
+      "name": "Envia Resposta WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/conversations/{{ $('Extrai Resposta da IA').item.json.conversationId }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "={{ $('Extrai Resposta da IA').item.json.aiResponse }}"
+            },
+            {
+              "name": "instanceId",
+              "value": "={{ $('Extrai Resposta da IA').item.json.instanceId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "save-outbound",
+      "name": "Salva Resposta no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 300]
+    }
+  ],
+  "connections": {
+    "Recebe Mensagem do Backend": {
+      "main": [
+        [
+          { "node": "Responde 200 ao Backend",  "type": "main", "index": 0 },
+          { "node": "Autentica no Backend",      "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Autentica no Backend": {
+      "main": [
+        [{ "node": "Busca Agente da Instância", "type": "main", "index": 0 }]
+      ]
+    },
+    "Busca Agente da Instância": {
+      "main": [
+        [{ "node": "Busca Histórico da Conversa", "type": "main", "index": 0 }]
+      ]
+    },
+    "Busca Histórico da Conversa": {
+      "main": [
+        [{ "node": "Busca Dados do Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Busca Dados do Lead": {
+      "main": [
+        [{ "node": "Monta Contexto para IA", "type": "main", "index": 0 }]
+      ]
+    },
+    "Monta Contexto para IA": {
+      "main": [
+        [{ "node": "Chama IA (OpenRouter)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Chama IA (OpenRouter)": {
+      "main": [
+        [{ "node": "Extrai Resposta da IA", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extrai Resposta da IA": {
+      "main": [
+        [{ "node": "Envia Resposta WhatsApp", "type": "main", "index": 0 }]
+      ]
+    },
+    "Envia Resposta WhatsApp": {
+      "main": [
+        [{ "node": "Salva Resposta no Backend", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2026-04-02T00:00:00.000Z",
+  "versionId": "2"
+}
