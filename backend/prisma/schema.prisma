@@ -43,11 +43,20 @@ enum HumanAttendeeStatus {
   OFFLINE
 }
 
-enum DischargeStatus {
-  PENDING
-  PROCESSING
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  RUNNING
+  PAUSED
   COMPLETED
   FAILED
+}
+
+enum CampaignContactStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
 }
 
 enum FollowUpType {
@@ -82,6 +91,7 @@ model Instance {
   conversations Conversation[]
   integrations Integration[]
   leads       Lead[]
+  campaigns   Campaign[]
   adminPhone  String?
   supportPhone String?  // Número do suporte humano para notificações de transferência
 
@@ -115,7 +125,7 @@ model Agent {
   updatedAt    DateTime   @updatedAt
   instance     Instance   @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   conversations Conversation[]
-  discharges   Discharge[]
+  campaigns    Campaign[]
   leads        Lead[]
   transcriptionEnabled Boolean @default(false)
   transcriptionModel   String  @default("google/gemini-flash-1.5")
@@ -240,31 +250,45 @@ model HumanAttendeeAssignment {
   @@map("human_attendee_assignments")
 }
 
-model Discharge {
-  id          String   @id @default(uuid())
-  agentId     String
-  name        String
-  phoneList   String[]
-  message     String   @db.Text
-  status      DischargeStatus @default(PENDING)
-  delaySeconds Int     @default(30)
+model Campaign {
+  id           String         @id @default(uuid())
+  name         String
+  status       CampaignStatus @default(DRAFT)
+  instanceId   String
+  agentId      String?
+  message      String         @db.Text
+  useAsBase    Boolean        @default(false)
+  intervalMin  Int            @default(5)
+  intervalMax  Int            @default(15)
   scheduledFor DateTime?
-  startedAt   DateTime?
-  completedAt DateTime?
-  totalSent   Int      @default(0)
-  totalFailed Int      @default(0)
-  useAI       Boolean  @default(false)
-  // JSON array de variações de mensagem para a IA rotacionar (evita repetição e bloqueios)
-  aiIdeas     String?  @db.Text
-  // Config pós-envio: { action: 'followup'|'agent', followUpType?: string, agentId?: string }
-  postSendConfig Json?
-  results     Json     @default("[]")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  startedAt    DateTime?
+  completedAt  DateTime?
+  totalSent    Int            @default(0)
+  totalFailed  Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
 
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  instance     Instance       @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  agent        Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  contacts     CampaignContact[]
 
-  @@map("discharges")
+  @@map("campaigns")
+}
+
+model CampaignContact {
+  id           String                @id @default(uuid())
+  campaignId   String
+  phone        String
+  name         String?
+  variables    Json?
+  status       CampaignContactStatus @default(PENDING)
+  sentAt       DateTime?
+  errorMessage String?
+  createdAt    DateTime              @default(now())
+
+  campaign     Campaign              @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_contacts")
 }
 
 model Message {

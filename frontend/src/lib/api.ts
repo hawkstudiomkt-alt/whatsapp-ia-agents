@@ -128,31 +128,39 @@ export interface DailyAnalytics {
   leadsConverted: number;
 }
 
-export interface Discharge {
+export interface CampaignContact {
   id: string;
-  agentId: string;
+  campaignId: string;
+  phone: string;
+  name?: string;
+  variables?: Record<string, string>;
+  status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
+  sentAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  campaign?: { id: string; name: string; instanceId: string };
+}
+
+export interface Campaign {
+  id: string;
   name: string;
-  phoneList: string[];
+  status: 'DRAFT' | 'SCHEDULED' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'FAILED';
+  instanceId: string;
+  agentId?: string;
   message: string;
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  delaySeconds: number;
+  useAsBase: boolean;
+  intervalMin: number;
+  intervalMax: number;
   scheduledFor?: string;
   startedAt?: string;
   completedAt?: string;
   totalSent: number;
   totalFailed: number;
-  useAI: boolean;
-  aiIdeas?: string; // JSON string: array of message variations
-  postSendConfig?: {
-    action: 'followup' | 'agent' | 'none';
-    followUpType?: string;
-    agentId?: string;
-    delayHours?: number;
-    followUpNote?: string;
-  };
-  results: { phone: string; status: string; deliveredAt: string }[];
   createdAt: string;
-  agent?: { id: string; name: string; instance?: any };
+  instance?: { id: string; name: string };
+  agent?: { id: string; name: string };
+  contacts?: CampaignContact[];
+  _count?: { contacts: number };
 }
 
 // API Calls
@@ -236,23 +244,29 @@ export const followupsApi = {
   delete: (id: string) => api.delete(`/followups/${id}`),
 };
 
-export const dischargesApi = {
-  findAll: () => api.get<Discharge[]>('/discharges').then(r => r.data),
-  findById: (id: string) => api.get<Discharge>(`/discharges/${id}`).then(r => r.data),
+export const campaignsApi = {
+  findAll: (instanceId?: string) =>
+    api.get<Campaign[]>('/campaigns' + (instanceId ? `?instanceId=${instanceId}` : '')).then(r => r.data),
+  findById: (id: string) => api.get<Campaign>(`/campaigns/${id}`).then(r => r.data),
   create: (data: {
-    agentId: string;
     name: string;
-    phoneList: string[];
+    instanceId: string;
+    agentId?: string;
     message: string;
-    delaySeconds?: number;
+    useAsBase?: boolean;
+    intervalMin?: number;
+    intervalMax?: number;
     scheduledFor?: string;
-    useAI?: boolean;
-    aiIdeas?: string;
-    postSendConfig?: any;
-  }) =>
-    api.post<Discharge>('/discharges', data).then(r => r.data),
-  start: (id: string) =>
-    api.post<{ success: boolean; message: string }>(`/discharges/${id}/start`).then(r => r.data),
-  cancel: (id: string) =>
-    api.post<Discharge>(`/discharges/${id}/cancel`).then(r => r.data),
+    contacts: { phone: string; name?: string; variables?: Record<string, string> }[];
+  }) => api.post<Campaign>('/campaigns', data).then(r => r.data),
+  trigger: (id: string) =>
+    api.post<{ success: boolean; message: string }>(`/campaigns/${id}/trigger`).then(r => r.data),
+  cancel: (id: string) => api.post<Campaign>(`/campaigns/${id}/cancel`).then(r => r.data),
+  delete: (id: string) => api.delete(`/campaigns/${id}`),
+  getStats: (instanceId?: string) =>
+    api.get<{ totalSent24h: number; totalFailed24h: number; activeCampaigns: number; totalContacts: number; deliveryRate: number }>(
+      '/campaigns/stats' + (instanceId ? `?instanceId=${instanceId}` : '')
+    ).then(r => r.data),
+  getAllContacts: (instanceId?: string) =>
+    api.get<CampaignContact[]>('/campaigns/contacts' + (instanceId ? `?instanceId=${instanceId}` : '')).then(r => r.data),
 };

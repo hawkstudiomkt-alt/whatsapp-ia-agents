@@ -1,0 +1,232 @@
+{
+  "name": "04 - Rattix: Campaign Dispatcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rattix-campaign",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "rattix-campaign-dispatcher"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true, campaignId: $json.body.campaignId, contacts: $json.body.contacts.length }) }}",
+        "options": {}
+      },
+      "id": "respond-ok",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 180]
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "output": "input1"
+      },
+      "id": "merge-start",
+      "name": "Start Processing",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [460, 420]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.contacts",
+        "options": {}
+      },
+      "id": "split-contacts",
+      "name": "Split Contacts",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [680, 420]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Interpolate variables into message\nconst contact = $input.item.json;\nconst body = $('Webhook Trigger').item.json.body;\n\nlet message = body.message;\n\n// Replace {nome} with contact name\nmessage = message.replace(/\\{nome\\}/gi, contact.name || 'cliente');\n\n// Replace custom variables\nif (contact.variables && typeof contact.variables === 'object') {\n  for (const [key, value] of Object.entries(contact.variables)) {\n    message = message.replace(new RegExp(`\\\\{${key}\\\\}`, 'gi'), String(value));\n  }\n}\n\n// Random delay in ms\nconst intervalMin = (body.intervalMin || 5) * 1000;\nconst intervalMax = (body.intervalMax || 15) * 1000;\nconst delay = Math.floor(Math.random() * (intervalMax - intervalMin + 1)) + intervalMin;\n\nreturn [{\n  json: {\n    contactId: contact.id,\n    phone: contact.phone,\n    name: contact.name || '',\n    variables: contact.variables || {},\n    message,\n    useAsBase: body.useAsBase,\n    instanceName: body.instanceName,\n    agentId: body.agentId,\n    campaignId: body.campaignId,\n    campaignName: body.campaignName,\n    backendUrl: body.backendUrl,\n    delayMs: delay,\n  }\n}];"
+      },
+      "id": "prepare-contact",
+      "name": "Prepare Contact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 420]
+    },
+    {
+      "parameters": {
+        "unit": "milliseconds",
+        "resume": "timeInterval",
+        "value": "={{ $json.delayMs }}"
+      },
+      "id": "wait-delay",
+      "name": "Wait (Anti-Spam Delay)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1120, 420]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "use-as-base",
+              "leftValue": "={{ $json.useAsBase }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-mode",
+      "name": "Use as Base?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1340, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ 'https://' + $json.instanceName + '.evolution-api.host/message/sendText/' + $json.instanceName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.phone }}@s.whatsapp.net\",\n  \"text\": \"{{ $json.message }}\"\n}",
+        "options": {}
+      },
+      "id": "send-direct",
+      "name": "Send Direct Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300],
+      "notes": "Configure Evolution API URL and API Key in credentials"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.backendUrl }}/api/webhook/campaign-agent",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"phone\": \"{{ $json.phone }}\",\n  \"instanceName\": \"{{ $json.instanceName }}\",\n  \"agentId\": \"{{ $json.agentId }}\",\n  \"context\": \"{{ $json.message }}\"\n}",
+        "options": {}
+      },
+      "id": "trigger-agent",
+      "name": "Trigger Agent (useAsBase)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 540]
+    },
+    {
+      "parameters": {
+        "mode": "passThrough",
+        "output": "input1"
+      },
+      "id": "merge-result",
+      "name": "Merge Result",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [1780, 420]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{ $('Prepare Contact').item.json.backendUrl }}/api/campaigns/contacts/{{ $('Prepare Contact').item.json.contactId }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"{{ $prevNode.name === 'Send Direct Message' || $prevNode.name === 'Trigger Agent (useAsBase)' ? 'SENT' : 'FAILED' }}\"\n}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "update-status",
+      "name": "Update Contact Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Prepare Contact').item.json.backendUrl }}/api/campaigns/{{ $('Prepare Contact').item.json.campaignId }}/leads/upsert",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"phone\": \"{{ $('Prepare Contact').item.json.phone }}\",\n  \"name\": \"{{ $('Prepare Contact').item.json.name }}\",\n  \"variables\": {{ JSON.stringify($('Prepare Contact').item.json.variables) }}\n}",
+        "options": { "timeout": 10000 }
+      },
+      "id": "upsert-lead",
+      "name": "Upsert Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 420]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [{ "node": "Respond OK", "type": "main", "index": 0 }],
+        [{ "node": "Start Processing", "type": "main", "index": 0 }]
+      ]
+    },
+    "Start Processing": {
+      "main": [
+        [{ "node": "Split Contacts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Split Contacts": {
+      "main": [
+        [{ "node": "Prepare Contact", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Contact": {
+      "main": [
+        [{ "node": "Wait (Anti-Spam Delay)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Wait (Anti-Spam Delay)": {
+      "main": [
+        [{ "node": "Use as Base?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Use as Base?": {
+      "main": [
+        [{ "node": "Send Direct Message", "type": "main", "index": 0 }],
+        [{ "node": "Trigger Agent (useAsBase)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Direct Message": {
+      "main": [
+        [{ "node": "Merge Result", "type": "main", "index": 0 }]
+      ]
+    },
+    "Trigger Agent (useAsBase)": {
+      "main": [
+        [{ "node": "Merge Result", "type": "main", "index": 1 }]
+      ]
+    },
+    "Merge Result": {
+      "main": [
+        [{ "node": "Update Contact Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Update Contact Status": {
+      "main": [
+        [{ "node": "Upsert Lead", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": [{ "name": "rattix" }],
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "rattix"
+  }
+}

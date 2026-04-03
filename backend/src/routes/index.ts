@@ -5,7 +5,7 @@ import { leadController } from '../controllers/lead.controller';
 import { analyticsController } from '../controllers/analytics.controller';
 import { webhookController } from '../controllers/webhook.controller';
 import { humanAttendeeController } from '../controllers/human-attendee.controller';
-import { dischargeController } from '../controllers/discharge.controller';
+import { campaignController } from '../controllers/campaign.controller';
 import { followupController } from '../controllers/followup.controller';
 import { integrationController } from '../controllers/integration.controller';
 import { authController } from '../controllers/auth.controller';
@@ -70,12 +70,18 @@ export async function routes(app: FastifyInstance) {
     app.get('/human-attendees/:attendeeId/assignments', humanAttendeeController.getAssignments.bind(humanAttendeeController));
     app.post('/human-attendees/assignments/:assignmentId/complete', humanAttendeeController.completeAssignment.bind(humanAttendeeController));
 
-    // Disparos
-    app.post('/discharges', dischargeController.create.bind(dischargeController));
-    app.get('/discharges', dischargeController.findAll.bind(dischargeController));
-    app.get('/discharges/:id', dischargeController.findById.bind(dischargeController));
-    app.post('/discharges/:id/start', dischargeController.start.bind(dischargeController));
-    app.post('/discharges/:id/cancel', dischargeController.cancel.bind(dischargeController));
+    // Campanhas de Disparo
+    app.post('/campaigns', campaignController.create.bind(campaignController));
+    app.get('/campaigns', campaignController.findAll.bind(campaignController));
+    app.get('/campaigns/stats', campaignController.getStats.bind(campaignController));
+    app.get('/campaigns/contacts', campaignController.getAllContacts.bind(campaignController));
+    app.get('/campaigns/:id', campaignController.findById.bind(campaignController));
+    app.post('/campaigns/:id/trigger', campaignController.trigger.bind(campaignController));
+    app.post('/campaigns/:id/cancel', campaignController.cancel.bind(campaignController));
+    app.delete('/campaigns/:id', campaignController.delete.bind(campaignController));
+    // Called by n8n
+    app.patch('/campaigns/contacts/:contactId', campaignController.updateContactStatus.bind(campaignController));
+    app.post('/campaigns/:id/leads/upsert', campaignController.upsertLead.bind(campaignController));
 
     // Follow-ups
     app.post('/followups', followupController.create.bind(followupController));
