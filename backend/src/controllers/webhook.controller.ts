@@ -18,8 +18,24 @@ async function triggerN8n(payload: Record<string, unknown>) {
       body: JSON.stringify(payload),
     });
   } catch (err) {
-    // Log mas não quebra o fluxo principal
     console.error('[webhook] Falha ao chamar n8n:', err);
+  }
+}
+
+// Dispara o alerta de lead quente para o n8n quando score >= 70 ou status muda para QUALIFIED
+async function triggerHotLeadAlert(leadId: string, reason: string) {
+  const alertUrl = process.env.N8N_HOT_LEAD_WEBHOOK_URL;
+  if (!alertUrl) return;
+
+  try {
+    await fetch(alertUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ leadId, reason, triggeredAt: new Date().toISOString() }),
+    });
+    console.log(`[webhook] Alerta de lead quente disparado: ${leadId} — ${reason}`);
+  } catch (err) {
+    console.error('[webhook] Falha ao disparar alerta de lead quente:', err);
   }
 }
 
@@ -60,9 +76,15 @@ async function autoQualifyLead(
     };
     if (leadService.shouldQualify(candidate, msgCount)) {
       updates.status = 'QUALIFIED';
-      // Registra nas analytics diárias
       await analyticsService.recordLeadQualified(instanceId);
+      // Dispara alerta de lead quente no n8n (fire-and-forget)
+      triggerHotLeadAlert(lead.id, 'Lead qualificado automaticamente pela IA').catch(() => {});
     }
+  }
+
+  // Alerta também quando score sobe muito (>= 70) mesmo sem mudar de status
+  if (!updates.status && currentScore >= 70 && (lead.score || 0) < 70) {
+    triggerHotLeadAlert(lead.id, `Score atingiu ${currentScore}/100`).catch(() => {});
   }
 
   if (Object.keys(updates).length > 0) {
@@ -90,13 +112,19 @@ export const webhookController = {
       return reply.status(200).send({ received: true, warning: 'Instance not found' });
     }
 
+    // Normaliza o nome do evento para suportar Evolution API v1 (connection.update)
+    // e v2 (CONNECTION_UPDATE) transparentemente
+    const eventName = (body.event || '').toLowerCase().replace(/_/g, '.');
+
     // Trata atualização de conexão
-    if (body.event === 'connection.update') {
+    if (eventName === 'connection.update') {
       const status = body.data?.state;
       if (status === 'open') {
         await instanceService.updateStatus(instance.id, 'CONNECTED');
-      } else if (status === 'close') {
+        console.log(`[webhook] Instância ${instance.name} → CONNECTED`);
+      } else if (status === 'close' || status === 'closed') {
         await instanceService.updateStatus(instance.id, 'DISCONNECTED');
+        console.log(`[webhook] Instância ${instance.name} → DISCONNECTED`);
       }
       return reply.status(200).send({ received: true });
     }
@@ -116,8 +144,8 @@ export const webhookController = {
       return reply.status(200).send({ received: true });
     }
 
-    // Processa apenas mensagens
-    if (body.event !== 'messages.upsert') {
+    // Processa apenas mensagens (aceita MESSAGES_UPSERT e messages.upsert)
+    if (eventName !== 'messages.upsert') {
       return reply.status(200).send({ received: true });
     }
 

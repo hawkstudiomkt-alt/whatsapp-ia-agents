@@ -1,0 +1,130 @@
+{
+  "name": "📥 Captura de Leads Externos (Meta / Forms / API)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "capture-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cl-webhook",
+      "name": "Recebe Lead Externo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "capture-lead"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true, status: 'processing' }) }}",
+        "options": {}
+      },
+      "id": "cl-respond",
+      "name": "Responde 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normaliza dados vindos de diferentes fontes:\n// Meta Lead Ads, Google Forms, Typeform, ou chamada direta\nconst body = $input.item.json.body || $input.item.json;\n\n// Meta Lead Ads (field_data array)\nlet name = '', phone = '', email = '', instanceId = '', source = 'external';\n\nif (body.field_data && Array.isArray(body.field_data)) {\n  // Formato Meta Lead Ads\n  body.field_data.forEach(f => {\n    if (f.name === 'full_name' || f.name === 'nome')         name = f.values?.[0] || '';\n    if (f.name === 'phone_number' || f.name === 'telefone')  phone = f.values?.[0] || '';\n    if (f.name === 'email')                                  email = f.values?.[0] || '';\n  });\n  source = 'meta_ads';\n} else {\n  // Formato direto (JSON simples)\n  name       = body.name || body.nome || '';\n  phone      = body.phone || body.telefone || body.whatsapp || '';\n  email      = body.email || '';\n  instanceId = body.instanceId || '';\n  source     = body.source || 'api';\n}\n\n// Limpa o telefone (só números)\nphone = phone.replace(/\\D/g, '');\nif (!phone) throw new Error('Telefone obrigatório não informado');\n\nreturn [{ json: { name, phone, email, instanceId, source } }];"
+      },
+      "id": "cl-parse",
+      "name": "Normaliza Dados do Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/auth/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email",    "value": "={{ $env.BACKEND_ADMIN_EMAIL }}" },
+            { "name": "password", "value": "={{ $env.BACKEND_ADMIN_PASSWORD }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cl-auth",
+      "name": "Autentica no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/leads",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "phone",      "value": "={{ $('Normaliza Dados do Lead').item.json.phone }}" },
+            { "name": "name",       "value": "={{ $('Normaliza Dados do Lead').item.json.name }}" },
+            { "name": "email",      "value": "={{ $('Normaliza Dados do Lead').item.json.email }}" },
+            { "name": "instanceId", "value": "={{ $('Normaliza Dados do Lead').item.json.instanceId || $env.DEFAULT_INSTANCE_ID }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "cl-createlead",
+      "name": "Cria Lead no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const leadData = $('Normaliza Dados do Lead').item.json;\nconst lead = $input.item.json;\nconst nome = leadData.name ? leadData.name.split(' ')[0] : 'você';\n\n// Mensagem de boas-vindas personalizada\nconst msg = [\n  'Oi ' + nome + '! 👋',\n  '',\n  'Vi que você demonstrou interesse e vim te dar um oi! 😊',\n  '',\n  'Pode falar comigo por aqui — vou te ajudar com tudo que precisar! Como posso te ajudar hoje?'\n].join('\\n');\n\nreturn [{ json: { \n  welcomeMsg: msg,\n  phone: leadData.phone,\n  leadId: lead.id || null\n} }];"
+      },
+      "id": "cl-buildmsg",
+      "name": "Prepara Boas-vindas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://n8n-evolution-api.zscidy.easypanel.host/message/sendText/{{ $env.DEFAULT_INSTANCE_NAME || 'whatsapp_01' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "429683C4C977415CAAFCCE10F7D57E11" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\"number\":\"{{ $json.phone }}\",\"textMessage\":{\"text\":{{ JSON.stringify($json.welcomeMsg) }}}}",
+        "options": {}
+      },
+      "id": "cl-send",
+      "name": "Envia Boas-vindas WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Recebe Lead Externo": {
+      "main": [[
+        { "node": "Responde 200",              "type": "main", "index": 0 },
+        { "node": "Normaliza Dados do Lead",   "type": "main", "index": 0 }
+      ]]
+    },
+    "Normaliza Dados do Lead": { "main": [[{ "node": "Autentica no Backend",        "type": "main", "index": 0 }]] },
+    "Autentica no Backend":    { "main": [[{ "node": "Cria Lead no Backend",         "type": "main", "index": 0 }]] },
+    "Cria Lead no Backend":    { "main": [[{ "node": "Prepara Boas-vindas",          "type": "main", "index": 0 }]] },
+    "Prepara Boas-vindas":     { "main": [[{ "node": "Envia Boas-vindas WhatsApp",   "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

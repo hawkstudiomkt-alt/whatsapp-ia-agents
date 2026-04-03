@@ -1,0 +1,110 @@
+{
+  "name": "🔥 Alerta Lead Quente",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hot-lead-alert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "alq-webhook",
+      "name": "Recebe Alerta de Lead Quente",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "hot-lead-alert"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ received: true }) }}",
+        "options": {}
+      },
+      "id": "alq-respond",
+      "name": "Responde 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [460, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/auth/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email",    "value": "={{ $env.BACKEND_ADMIN_EMAIL }}" },
+            { "name": "password", "value": "={{ $env.BACKEND_ADMIN_PASSWORD }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alq-auth",
+      "name": "Autentica no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/leads/{{ $('Recebe Alerta de Lead Quente').item.json.body.leadId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "alq-getlead",
+      "name": "Busca Dados do Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.item.json;\nconst webhook = $('Recebe Alerta de Lead Quente').item.json.body;\n\nconst statusEmoji = {\n  'QUALIFIED': '⭐',\n  'CONVERTED': '🏆',\n  'NEW': '👋'\n}[lead.status] || '📌';\n\nconst msg = [\n  '🔥 *Lead Quente Detectado!*',\n  '',\n  statusEmoji + ' *' + (lead.name || 'Lead sem nome') + '*',\n  '📱 ' + (lead.phone || '-'),\n  lead.email ? '📧 ' + lead.email : null,\n  '',\n  '📊 *Score:* ' + (lead.score || 0) + '/100',\n  '📌 *Status:* ' + (lead.status || 'NEW'),\n  lead.notes ? '\\n📝 *Notas:*\\n' + lead.notes.substring(0, 200) : null,\n  '',\n  webhook.reason ? '💡 *Motivo:* ' + webhook.reason : null,\n  '',\n  '👉 _Acesse o painel para acompanhar este lead._'\n].filter(Boolean).join('\\n');\n\nreturn [{ json: { message: msg, lead } }];"
+      },
+      "id": "alq-format",
+      "name": "Formata Alerta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://n8n-evolution-api.zscidy.easypanel.host/message/sendText/{{ $env.ADMIN_WHATSAPP_INSTANCE || 'whatsapp_01' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "429683C4C977415CAAFCCE10F7D57E11" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\"number\":\"{{ $env.ADMIN_WHATSAPP_NUMBER }}\",\"textMessage\":{\"text\":{{ JSON.stringify($json.message) }}}}",
+        "options": {}
+      },
+      "id": "alq-send",
+      "name": "Notifica Admin WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Recebe Alerta de Lead Quente": {
+      "main": [[
+        { "node": "Responde 200",         "type": "main", "index": 0 },
+        { "node": "Autentica no Backend", "type": "main", "index": 0 }
+      ]]
+    },
+    "Autentica no Backend": { "main": [[{ "node": "Busca Dados do Lead", "type": "main", "index": 0 }]] },
+    "Busca Dados do Lead":  { "main": [[{ "node": "Formata Alerta",      "type": "main", "index": 0 }]] },
+    "Formata Alerta":       { "main": [[{ "node": "Notifica Admin WhatsApp", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

@@ -1,0 +1,89 @@
+{
+  "name": "📊 Relatório Diário — Analytics",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }] }
+      },
+      "id": "rd-cron",
+      "name": "Todo dia às 8h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/auth/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email",    "value": "={{ $env.BACKEND_ADMIN_EMAIL }}" },
+            { "name": "password", "value": "={{ $env.BACKEND_ADMIN_PASSWORD }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "rd-auth",
+      "name": "Autentica no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/analytics/dashboard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "rd-analytics",
+      "name": "Busca Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.item.json;\nconst hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });\nconst cap = s => s.charAt(0).toUpperCase() + s.slice(1);\n\nconst msg = [\n  '📊 *Relatório Diário*',\n  '_' + cap(hoje) + '_',\n  '',\n  '💬 *Mensagens*',\n  '• Total: ' + (d.totalMessages || 0) + '  |  Enviadas: ' + (d.messagesSent || 0),\n  '• Recebidas: ' + (d.messagesReceived || 0) + '  |  Conversas ativas: ' + (d.activeConversations || 0),\n  '',\n  '👥 *Leads*',\n  '• Hoje: ' + (d.leadsToday || 0) + ' novos  |  Total: ' + (d.totalLeads || 0),\n  '• Qualificados: ' + (d.leadsQualified || 0) + '  |  Convertidos: ' + (d.leadsConverted || 0),\n  '• Em aberto (NEW): ' + (d.leadsNew || 0),\n  '',\n  '📈 *Performance*',\n  '• Taxa de conversão: ' + ((d.conversionRate || 0).toFixed(1)) + '%',\n  '• Automação IA: ' + (d.automationRate || 0) + '%',\n  '• Tempo economizado: ' + (d.timeSavedHours || 0) + 'h no mês',\n  '',\n  '🤖 _WhatsApp AI Agents_'\n].join('\\n');\n\nreturn [{ json: { message: msg } }];"
+      },
+      "id": "rd-format",
+      "name": "Formata Relatório",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://n8n-evolution-api.zscidy.easypanel.host/message/sendText/{{ $env.ADMIN_WHATSAPP_INSTANCE || 'whatsapp_01' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "429683C4C977415CAAFCCE10F7D57E11" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\"number\":\"{{ $env.ADMIN_WHATSAPP_NUMBER }}\",\"textMessage\":{\"text\":{{ JSON.stringify($json.message) }}}}",
+        "options": {}
+      },
+      "id": "rd-send",
+      "name": "Envia Relatório WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Todo dia às 8h":        { "main": [[{ "node": "Autentica no Backend",   "type": "main", "index": 0 }]] },
+    "Autentica no Backend":  { "main": [[{ "node": "Busca Dashboard",        "type": "main", "index": 0 }]] },
+    "Busca Dashboard":       { "main": [[{ "node": "Formata Relatório",      "type": "main", "index": 0 }]] },
+    "Formata Relatório":     { "main": [[{ "node": "Envia Relatório WhatsApp","type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

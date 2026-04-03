@@ -1,0 +1,169 @@
+{
+  "name": "⏰ Follow-up Automático de Leads",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 10,16 * * 1-6" }]
+        }
+      },
+      "id": "fu-cron",
+      "name": "Seg-Sáb às 10h e 16h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/auth/login",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "email",    "value": "={{ $env.BACKEND_ADMIN_EMAIL }}" },
+            { "name": "password", "value": "={{ $env.BACKEND_ADMIN_PASSWORD }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fu-auth",
+      "name": "Autentica no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://n8n-whatsapp-backend.zscidy.easypanel.host/api/leads?status=QUALIFIED",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fu-leads",
+      "name": "Busca Leads Qualificados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filtra leads que precisam de follow-up:\n// - Têm número de telefone\n// - Foram atualizados há mais de 4 horas\n// - Não são CONVERTED nem DISQUALIFIED\nconst leads = Array.isArray($input.item.json) ? $input.item.json : [];\nconst agora = Date.now();\nconst HORAS_SEM_RESPOSTA = 4;\nconst limite = HORAS_SEM_RESPOSTA * 60 * 60 * 1000;\n\nconst leadsFiltrados = leads.filter(l => {\n  if (!l.phone) return false;\n  const ultima = new Date(l.updatedAt || l.createdAt).getTime();\n  const semResposta = (agora - ultima) >= limite;\n  return semResposta;\n});\n\n// Textos de follow-up variados para soar natural\nconst followups = [\n  'Oi {nome}! 👋 Tudo bem? Passando pra ver se ficou alguma dúvida...',\n  'Oi {nome}! Vi que você demonstrou interesse. Ainda posso te ajudar? 😊',\n  'Olá {nome}! Só queria saber se ainda posso te ajudar com alguma coisa 🙌',\n  'Ei {nome}! Tudo bem? Ainda tem interesse? Pode contar comigo! 💬'\n];\n\nreturn leadsFiltrados.map(lead => {\n  const idx = Math.floor(Math.random() * followups.length);\n  const nome = (lead.name || '').split(' ')[0] || 'você';\n  const texto = followups[idx].replace('{nome}', nome);\n  return { json: { lead, followupText: texto } };\n});"
+      },
+      "id": "fu-filter",
+      "name": "Filtra e Prepara Follow-ups",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "fu-split",
+      "name": "Processa um por vez",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/instances/{{ $json.lead.instanceId }}/agents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "fu-getinstance",
+      "name": "Busca Instância do Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/instances/{{ $('Filtra e Prepara Follow-ups').item.json.lead.instanceId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fu-getinstname",
+      "name": "Busca Nome da Instância",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://n8n-evolution-api.zscidy.easypanel.host/message/sendText/{{ $json.name }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "apikey", "value": "429683C4C977415CAAFCCE10F7D57E11" }]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\"number\":\"{{ $('Filtra e Prepara Follow-ups').item.json.lead.phone }}\",\"textMessage\":{\"text\":{{ JSON.stringify($('Filtra e Prepara Follow-ups').item.json.followupText) }}}}",
+        "options": {}
+      },
+      "id": "fu-send",
+      "name": "Envia Follow-up WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/conversations/{{ $('Filtra e Prepara Follow-ups').item.json.lead.id }}/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}" }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "content",    "value": "={{ $('Filtra e Prepara Follow-ups').item.json.followupText }}" },
+            { "name": "direction",  "value": "OUTBOUND" },
+            { "name": "instanceId", "value": "={{ $('Filtra e Prepara Follow-ups').item.json.lead.instanceId }}" }
+          ]
+        },
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "fu-save",
+      "name": "Salva Mensagem no Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Seg-Sáb às 10h e 16h":        { "main": [[{ "node": "Autentica no Backend",          "type": "main", "index": 0 }]] },
+    "Autentica no Backend":          { "main": [[{ "node": "Busca Leads Qualificados",       "type": "main", "index": 0 }]] },
+    "Busca Leads Qualificados":      { "main": [[{ "node": "Filtra e Prepara Follow-ups",    "type": "main", "index": 0 }]] },
+    "Filtra e Prepara Follow-ups":   { "main": [[{ "node": "Processa um por vez",            "type": "main", "index": 0 }]] },
+    "Processa um por vez":           { "main": [[{ "node": "Busca Instância do Lead",        "type": "main", "index": 0 }]] },
+    "Busca Instância do Lead":       { "main": [[{ "node": "Busca Nome da Instância",        "type": "main", "index": 0 }]] },
+    "Busca Nome da Instância":       { "main": [[{ "node": "Envia Follow-up WhatsApp",       "type": "main", "index": 0 }]] },
+    "Envia Follow-up WhatsApp":      { "main": [[{ "node": "Salva Mensagem no Backend",      "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}
