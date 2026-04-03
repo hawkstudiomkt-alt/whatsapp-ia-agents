@@ -8,6 +8,7 @@ import {
   ChevronDown, CheckCircle, AlertCircle, Clock, Zap, MessageSquare,
 } from 'lucide-react';
 import { Card, Button, Badge, LoadingSpinner, PageTransition } from '../components/ui';
+import FollowUpModal from '../components/FollowUpModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -17,15 +18,6 @@ const STATUS_CONFIG = {
   DISQUALIFIED: { label: 'Desqualificado', color: 'bg-red-500/20 text-red-400 border-red-500/30',        dot: 'bg-red-400'    },
   CONVERTED:    { label: 'Convertido',     color: 'bg-purple-500/20 text-purple-400 border-purple-500/30', dot: 'bg-purple-400' },
 } as const;
-
-const FOLLOWUP_TEMPLATES = [
-  { id: 'no_response_24h', type: 'NO_RESPONSE', label: '📭 Sem resposta (24h)', note: 'O cliente não respondeu. Retome o contato com gentileza, pergunte se ainda tem interesse.' },
-  { id: 'no_response_3d',  type: 'NO_RESPONSE', label: '📭 Sem resposta (3 dias)', note: 'Faz 3 dias sem retorno. Tente uma abordagem diferente, destaque um benefício novo.' },
-  { id: 'proposal_pending', type: 'REMINDER', label: '📋 Proposta pendente', note: 'O cliente recebeu a proposta mas não retornou. Pergunte se teve dúvidas ou precisa de mais informações.' },
-  { id: 'reactivation',    type: 'CUSTOM',    label: '🔥 Reativação de lead frio', note: 'Lead inativo há muito tempo. Apresente uma novidade, promoção ou conteúdo de valor para reengajar.' },
-  { id: 'post_event',      type: 'REMINDER',  label: '🎉 Pós-evento / compra', note: 'Verifique a satisfação, agradeça e abra caminho para novas oportunidades ou indicações.' },
-  { id: 'custom',          type: 'CUSTOM',    label: '✏️ Personalizado (escrever do zero)', note: '' },
-];
 
 const TAG_COLORS = [
   'bg-pink-500/20 text-pink-400 border-pink-500/30',
@@ -78,11 +70,6 @@ export default function Leads() {
   const [editData, setEditData] = useState({
     name: '', email: '', tags: [] as string[], agentId: '', instanceId: '', tagInput: '',
   });
-
-  // Formulário de follow-up
-  const [followUpTemplate, setFollowUpTemplate] = useState(FOLLOWUP_TEMPLATES[0]);
-  const [followUpDays, setFollowUpDays] = useState(1);
-  const [followUpNote, setFollowUpNote] = useState('');
 
   // Queries
   const { data: leads, isLoading } = useQuery({
@@ -182,12 +169,6 @@ export default function Leads() {
 
   function removeTag(form: any, setForm: any, tag: string) {
     setForm({ ...form, tags: form.tags.filter((t: string) => t !== tag) });
-  }
-
-  // Seleciona template de follow-up
-  function selectTemplate(tpl: typeof FOLLOWUP_TEMPLATES[0]) {
-    setFollowUpTemplate(tpl);
-    setFollowUpNote(tpl.note);
   }
 
   const countByStatus = (s: string) => (leads || []).filter(l => l.status === s).length;
@@ -540,66 +521,20 @@ export default function Leads() {
       {/* ── Modal: Follow-up ──────────────────────────────────── */}
       <AnimatePresence>
         {selectedLeadForFollowUp && (
-          <Modal onClose={() => setSelectedLeadForFollowUp(null)} title={`Follow-up: ${selectedLeadForFollowUp.name || selectedLeadForFollowUp.phone}`} icon={<Calendar className="text-blue-400" />} wide>
-            <div className="space-y-5">
-              {/* Templates */}
-              <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">Escolha um Template</label>
-                <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto pr-1">
-                  {FOLLOWUP_TEMPLATES.map(tpl => (
-                    <button key={tpl.id} onClick={() => selectTemplate(tpl)}
-                      className={`text-left px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                        followUpTemplate.id === tpl.id
-                          ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
-                          : 'bg-gray-900/50 border-gray-700/50 text-gray-300 hover:border-gray-600'
-                      }`}>
-                      {tpl.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Instrução para a IA */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400">Instrução para a IA</label>
-                <textarea
-                  value={followUpNote}
-                  onChange={e => setFollowUpNote(e.target.value)}
-                  rows={3}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none resize-none"
-                  placeholder="A IA vai usar isso como guia para personalizar a mensagem de retorno..."
-                />
-                <p className="text-xs text-gray-600">A IA decidirá como abordar o lead com base nessa instrução e no histórico da conversa, sem copiar literalmente.</p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-400">Daqui a quantos dias?</label>
-                <input type="number" min={1} max={60} value={followUpDays}
-                  onChange={e => setFollowUpDays(parseInt(e.target.value) || 1)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:border-blue-500 outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 pt-4">
-              <Button variant="secondary" onClick={() => setSelectedLeadForFollowUp(null)} className="flex-1">Cancelar</Button>
-              <Button
-                onClick={() => {
-                  const date = new Date();
-                  date.setDate(date.getDate() + followUpDays);
-                  followUpMutation.mutate({
-                    leadId: selectedLeadForFollowUp.id,
-                    type: followUpTemplate.type,
-                    scheduledFor: date.toISOString(),
-                    notes: followUpNote,
-                  });
-                }}
-                disabled={followUpMutation.isPending}
-                className="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500"
-              >
-                {followUpMutation.isPending ? 'Agendando...' : '📅 Confirmar Agendamento'}
-              </Button>
-            </div>
-          </Modal>
+          <FollowUpModal
+            leadName={selectedLeadForFollowUp.name || ''}
+            leadPhone={selectedLeadForFollowUp.phone}
+            onClose={() => setSelectedLeadForFollowUp(null)}
+            onConfirm={({ type, scheduledFor, notes }) => {
+              followUpMutation.mutate({
+                leadId: selectedLeadForFollowUp.id,
+                type,
+                scheduledFor,
+                notes,
+              });
+            }}
+            isPending={followUpMutation.isPending}
+          />
         )}
       </AnimatePresence>
 
