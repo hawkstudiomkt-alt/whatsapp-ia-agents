@@ -83,6 +83,7 @@ model Instance {
   integrations Integration[]
   leads       Lead[]
   adminPhone  String?
+  supportPhone String?  // Número do suporte humano para notificações de transferência
 
   @@map("instances")
 }
@@ -154,6 +155,7 @@ model Lead {
   status       LeadStatus @default(NEW)
   score        Int?
   notes        String?    @db.Text
+  tags         String[]   @default([])
 
   // Designação para atendente humano
   assignedToHuman Boolean  @default(false)
@@ -252,6 +254,10 @@ model Discharge {
   totalSent   Int      @default(0)
   totalFailed Int      @default(0)
   useAI       Boolean  @default(false)
+  // JSON array de variações de mensagem para a IA rotacionar (evita repetição e bloqueios)
+  aiIdeas     String?  @db.Text
+  // Config pós-envio: { action: 'followup'|'agent', followUpType?: string, agentId?: string }
+  postSendConfig Json?
   results     Json     @default("[]")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

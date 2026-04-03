@@ -9,6 +9,9 @@ const updateLeadSchema = z.object({
   status: z.enum(['NEW', 'QUALIFIED', 'DISQUALIFIED', 'CONVERTED']).optional(),
   score: z.number().min(0).max(100).optional(),
   notes: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  agentId: z.string().uuid().optional().nullable(),
+  assignedToHuman: z.boolean().optional(),
 });
 
 const createLeadSchema = z.object({
@@ -17,13 +20,18 @@ const createLeadSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
   instanceId: z.string().uuid().optional(),
   agentId: z.string().uuid().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+const toggleHumanSchema = z.object({
+  reason: z.string().optional(),
 });
 
 export const leadController = {
   async create(request: FastifyRequest, reply: FastifyReply) {
     const data = createLeadSchema.parse(request.body);
     const existing = await leadService.findByPhone(data.phone);
-    
+
     if (existing) {
       return reply.status(400).send({ error: 'Lead with this phone already exists' });
     }
@@ -31,6 +39,7 @@ export const leadController = {
     const lead = await leadService.create(data);
     return reply.status(201).send(lead);
   },
+
   async findAll(request: FastifyRequest, reply: FastifyReply) {
     const { status } = request.query as { status?: LeadStatus };
     const leads = await leadService.findAll(status);
@@ -60,6 +69,17 @@ export const leadController = {
     }
   },
 
+  async delete(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as { id: string };
+
+    try {
+      await leadService.delete(id);
+      return reply.status(204).send();
+    } catch {
+      return reply.status(404).send({ error: 'Lead not found' });
+    }
+  },
+
   async updateStatus(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
     const { status } = request.body as { status: LeadStatus };
@@ -73,6 +93,23 @@ export const leadController = {
   },
 
   /**
+   * Alterna atendimento entre IA e Humano.
+   * Quando ativa humano, envia notificação WhatsApp para o supportPhone da instância.
+   */
+  async toggleHuman(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as { id: string };
+    const { reason } = toggleHumanSchema.parse(request.body || {});
+
+    try {
+      const result = await leadService.toggleHuman(id, reason);
+      return reply.send(result);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Erro ao alternar modo de atendimento';
+      return reply.status(404).send({ error: msg });
+    }
+  },
+
+  /**
    * Atualização pelo n8n depois de cada resposta da IA
    * Aceita sinais extraídos do formato <<IA_LEAD:...>>
    */
@@ -82,7 +119,7 @@ export const leadController = {
       score_delta?: number;
       notes_to_add?: string;
       status?: LeadStatus;
-      signals?: string[]; // ex: ["SCORE:+15", "STATUS:QUALIFIED", "NOTE:texto"]
+      signals?: string[];
     };
 
     try {
@@ -92,7 +129,6 @@ export const leadController = {
       const updates: Record<string, unknown> = {};
       const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-      // Processa sinais estruturados vindos do n8n
       if (signals && signals.length > 0) {
         for (const signal of signals) {
           if (signal.startsWith('SCORE:')) {
@@ -103,7 +139,6 @@ export const leadController = {
           } else if (signal.startsWith('STATUS:')) {
             const newStatus = signal.replace('STATUS:', '') as LeadStatus;
             if (['NEW', 'QUALIFIED', 'DISQUALIFIED', 'CONVERTED'].includes(newStatus)) {
-              // Só muda para frente no funil, nunca regride
               const statusOrder = { NEW: 0, QUALIFIED: 1, DISQUALIFIED: 1, CONVERTED: 2 };
               if ((statusOrder[newStatus] || 0) >= (statusOrder[lead.status] || 0)) {
                 updates.status = newStatus;
@@ -119,7 +154,6 @@ export const leadController = {
         }
       }
 
-      // Suporte a campos diretos também
       if (score_delta !== undefined) {
         updates.score = Math.min(100, Math.max(0, (lead.score || 0) + score_delta));
       }

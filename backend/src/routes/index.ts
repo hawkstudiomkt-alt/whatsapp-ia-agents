@@ -49,8 +49,10 @@ export async function routes(app: FastifyInstance) {
     app.get('/leads', leadController.findAll.bind(leadController));
     app.get('/leads/:id', leadController.findById.bind(leadController));
     app.put('/leads/:id', leadController.update.bind(leadController));
+    app.delete('/leads/:id', leadController.delete.bind(leadController));
     app.patch('/leads/:id/status', leadController.updateStatus.bind(leadController));
     app.patch('/leads/:id/ai-update', leadController.aiUpdate.bind(leadController));
+    app.post('/leads/:id/toggle-human', leadController.toggleHuman.bind(leadController));
 
     // Analytics
     app.get('/analytics/summary', analyticsController.getSummary.bind(analyticsController));

@@ -12,6 +12,7 @@ export interface Instance {
   status: 'CONNECTED' | 'DISCONNECTED' | 'PENDING';
   apiKey: string;
   adminPhone?: string;
+  supportPhone?: string; // número de suporte humano para notificações
   createdAt: string;
   agents?: { id: string; name: string; status: string }[];
   _count?: { conversations: number; messages: number };
@@ -42,14 +43,19 @@ export interface Lead {
   status: 'NEW' | 'QUALIFIED' | 'DISQUALIFIED' | 'CONVERTED';
   score?: number;
   notes?: string;
+  tags?: string[];
+  assignedToHuman?: boolean;
+  instanceId?: string;
+  agentId?: string;
   conversation?: {
     id: string;
     phone: string;
     instanceId: string;
-    agent?: { name: string }
+    isHumanHandling?: boolean;
+    agent?: { name: string };
   };
-  instance?: { name: string };
-  agent?: { name: string };
+  instance?: { id: string; name: string };
+  agent?: { id: string; name: string };
 }
 
 export interface Integration {
@@ -74,6 +80,7 @@ export interface Conversation {
   id: string;
   phone: string;
   status: 'ACTIVE' | 'CLOSED' | 'TRANSFERRED';
+  isHumanHandling?: boolean;
   agent: { id: string; name: string };
   lead?: { name?: string; status: string; score?: number };
   _count?: { messages: number };
@@ -121,6 +128,33 @@ export interface DailyAnalytics {
   leadsConverted: number;
 }
 
+export interface Discharge {
+  id: string;
+  agentId: string;
+  name: string;
+  phoneList: string[];
+  message: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  delaySeconds: number;
+  scheduledFor?: string;
+  startedAt?: string;
+  completedAt?: string;
+  totalSent: number;
+  totalFailed: number;
+  useAI: boolean;
+  aiIdeas?: string; // JSON string: array of message variations
+  postSendConfig?: {
+    action: 'followup' | 'agent' | 'none';
+    followUpType?: string;
+    agentId?: string;
+    delayHours?: number;
+    followUpNote?: string;
+  };
+  results: { phone: string; status: string; deliveredAt: string }[];
+  createdAt: string;
+  agent?: { id: string; name: string; instance?: any };
+}
+
 // API Calls
 export const instancesApi = {
   findAll: () => api.get<Instance[]>('/instances').then(r => r.data),
@@ -164,10 +198,14 @@ export const leadsApi = {
     email?: string;
     instanceId?: string;
     agentId?: string;
+    tags?: string[];
   }) =>
     api.post<Lead>('/leads', data).then(r => r.data),
-  update: (id: string, data: Partial<Lead>) =>
+  update: (id: string, data: Partial<Lead> & { tags?: string[] }) =>
     api.put<Lead>(`/leads/${id}`, data).then(r => r.data),
+  delete: (id: string) => api.delete(`/leads/${id}`),
+  toggleHuman: (id: string, reason?: string) =>
+    api.post<{ lead: Lead; isHumanHandling: boolean }>(`/leads/${id}/toggle-human`, { reason }).then(r => r.data),
 };
 
 export const integrationsApi = {
@@ -196,4 +234,25 @@ export const followupsApi = {
   create: (data: { leadId: string; type: string; scheduledFor: string; notes?: string }) =>
     api.post<FollowUp>('/followups', data).then(r => r.data),
   delete: (id: string) => api.delete(`/followups/${id}`),
+};
+
+export const dischargesApi = {
+  findAll: () => api.get<Discharge[]>('/discharges').then(r => r.data),
+  findById: (id: string) => api.get<Discharge>(`/discharges/${id}`).then(r => r.data),
+  create: (data: {
+    agentId: string;
+    name: string;
+    phoneList: string[];
+    message: string;
+    delaySeconds?: number;
+    scheduledFor?: string;
+    useAI?: boolean;
+    aiIdeas?: string;
+    postSendConfig?: any;
+  }) =>
+    api.post<Discharge>('/discharges', data).then(r => r.data),
+  start: (id: string) =>
+    api.post<{ success: boolean; message: string }>(`/discharges/${id}/start`).then(r => r.data),
+  cancel: (id: string) =>
+    api.post<Discharge>(`/discharges/${id}/cancel`).then(r => r.data),
 };

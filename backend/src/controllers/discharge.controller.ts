@@ -7,9 +7,13 @@ const createDischargeSchema = z.object({
   name: z.string().min(1),
   phoneList: z.array(z.string()).min(1),
   message: z.string().min(1),
-  delaySeconds: z.number().min(10).max(300).optional(),
+  delaySeconds: z.number().min(5).max(300).optional(),
   scheduledFor: z.string().datetime().optional(),
   useAI: z.boolean().optional(),
+  // JSON string com array de variações: '["Oi {nome}!", "Olá {nome}!"]'
+  aiIdeas: z.string().optional(),
+  // Config pós-envio
+  postSendConfig: z.any().optional(),
 });
 
 export const dischargeController = {
