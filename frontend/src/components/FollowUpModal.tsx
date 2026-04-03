@@ -371,7 +371,7 @@ interface FollowUpModalProps {
 
 // ─── Componente ───────────────────────────────────────────────────────────────
 
-export function FollowUpModal({ leadName, leadPhone, onClose, onConfirm, isPending }: FollowUpModalProps) {
+export default function FollowUpModal({ leadName, leadPhone, onClose, onConfirm, isPending }: FollowUpModalProps) {
   const displayName = leadName || leadPhone;
 
   // Step: 'niche' | 'template' | 'configure'
