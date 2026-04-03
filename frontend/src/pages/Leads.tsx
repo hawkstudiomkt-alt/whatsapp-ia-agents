@@ -407,23 +407,23 @@ export default function Leads() {
       {/* ── Modal: Criar Lead ──────────────────────────────────── */}
       <AnimatePresence>
         {showCreateForm && (
-          <Modal onClose={() => setShowCreateForm(false)} title="Adicionar Novo Lead" icon={<Plus className="text-green-500" />}>
+          <Modal onClose={() => setShowCreateForm(false)} title="Novo Lead" icon={<Plus style={{ color: LIME }} />}>
             <div className="space-y-4">
-              <InputField label="WhatsApp *" placeholder="5511999999999" value={newLeadData.phone}
+              <InputField label="WhatsApp" placeholder="5511999999999" value={newLeadData.phone}
                 onChange={v => setNewLeadData({ ...newLeadData, phone: v })} />
-              <div className="grid grid-cols-2 gap-4">
-                <InputField label="Nome" placeholder="Nome completo" value={newLeadData.name}
+              <div className="grid grid-cols-2 gap-3">
+                <InputField label="Nome" placeholder="Nome completo" value={newLeadData.name} optional
                   onChange={v => setNewLeadData({ ...newLeadData, name: v })} />
-                <InputField label="Email" placeholder="email@exemplo.com" value={newLeadData.email}
+                <InputField label="Email" placeholder="email@exemplo.com" value={newLeadData.email} optional
                   onChange={v => setNewLeadData({ ...newLeadData, email: v })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <SelectField label="Instância" value={newLeadData.instanceId}
+              <div className="grid grid-cols-2 gap-3">
+                <SelectField label="Instância" value={newLeadData.instanceId} optional
                   onChange={v => setNewLeadData({ ...newLeadData, instanceId: v })}
-                  options={[{ value: '', label: 'Selecione...' }, ...(instances || []).map(i => ({ value: i.id, label: i.name }))]} />
-                <SelectField label="Agente" value={newLeadData.agentId}
+                  options={[{ value: '', label: 'Nenhuma' }, ...(instances || []).map(i => ({ value: i.id, label: i.name }))]} />
+                <SelectField label="Agente" value={newLeadData.agentId} optional
                   onChange={v => setNewLeadData({ ...newLeadData, agentId: v })}
-                  options={[{ value: '', label: 'Selecione...' }, ...(agents || []).filter(a => !newLeadData.instanceId || a.instanceId === newLeadData.instanceId).map(a => ({ value: a.id, label: a.name }))]} />
+                  options={[{ value: '', label: 'Nenhum' }, ...(agents || []).filter(a => !newLeadData.instanceId || a.instanceId === newLeadData.instanceId).map(a => ({ value: a.id, label: a.name }))]} />
               </div>
               <TagInput
                 label="Tags"
@@ -434,12 +434,19 @@ export default function Leads() {
                 onRemove={tag => removeTag(newLeadData, setNewLeadData, tag)}
               />
             </div>
-            <div className="flex gap-3 pt-4">
-              <Button variant="secondary" onClick={() => setShowCreateForm(false)} className="flex-1">Cancelar</Button>
-              <Button onClick={() => createMutation.mutate({ phone: newLeadData.phone, name: newLeadData.name, email: newLeadData.email, instanceId: newLeadData.instanceId || undefined, agentId: newLeadData.agentId || undefined, tags: newLeadData.tags })}
-                disabled={createMutation.isPending || !newLeadData.phone} className="flex-1">
-                {createMutation.isPending ? 'Criando...' : 'Criar Lead'}
-              </Button>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setShowCreateForm(false)} className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: '#1a1a1a', border: '1px solid #333', color: '#888' }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => createMutation.mutate({ phone: newLeadData.phone, name: newLeadData.name, email: newLeadData.email, instanceId: newLeadData.instanceId || undefined, agentId: newLeadData.agentId || undefined, tags: newLeadData.tags })}
+                disabled={createMutation.isPending || !newLeadData.phone}
+                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all"
+                style={{ background: newLeadData.phone ? LIME : '#222', color: newLeadData.phone ? '#000' : '#555', boxShadow: newLeadData.phone ? `0 0 20px rgba(182,255,0,0.25)` : 'none' }}
+              >
+                {createMutation.isPending ? 'Criando...' : '+ Criar Lead'}
+              </button>
             </div>
           </Modal>
         )}
@@ -448,15 +455,15 @@ export default function Leads() {
       {/* ── Modal: Editar Lead ─────────────────────────────────── */}
       <AnimatePresence>
         {editingLead && (
-          <Modal onClose={() => setEditingLead(null)} title={`Editar: ${editingLead.name || editingLead.phone}`} icon={<Edit3 className="text-blue-400" />}>
+          <Modal onClose={() => setEditingLead(null)} title={`Editar Lead`} icon={<Edit3 style={{ color: PURPLE }} />}>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <InputField label="Nome" placeholder="Nome completo" value={editData.name}
+              <div className="grid grid-cols-2 gap-3">
+                <InputField label="Nome" placeholder="Nome completo" value={editData.name} optional
                   onChange={v => setEditData({ ...editData, name: v })} />
-                <InputField label="Email" placeholder="email@exemplo.com" value={editData.email}
+                <InputField label="Email" placeholder="email@exemplo.com" value={editData.email} optional
                   onChange={v => setEditData({ ...editData, email: v })} />
               </div>
-              <SelectField label="Agente Atribuído" value={editData.agentId}
+              <SelectField label="Agente" value={editData.agentId} optional
                 onChange={v => setEditData({ ...editData, agentId: v })}
                 options={[{ value: '', label: 'Sem agente' }, ...(agents || []).map(a => ({ value: a.id, label: a.name }))]} />
               <TagInput
@@ -468,12 +475,19 @@ export default function Leads() {
                 onRemove={tag => removeTag(editData, setEditData, tag)}
               />
             </div>
-            <div className="flex gap-3 pt-4">
-              <Button variant="secondary" onClick={() => setEditingLead(null)} className="flex-1">Cancelar</Button>
-              <Button onClick={() => updateMutation.mutate({ id: editingLead.id, data: { name: editData.name || undefined, email: editData.email || undefined, agentId: editData.agentId || undefined, tags: editData.tags } })}
-                disabled={updateMutation.isPending} className="flex-1">
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setEditingLead(null)} className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all"
+                style={{ background: '#1a1a1a', border: '1px solid #333', color: '#888' }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => updateMutation.mutate({ id: editingLead.id, data: { name: editData.name || undefined, email: editData.email || undefined, agentId: editData.agentId || undefined, tags: editData.tags } })}
+                disabled={updateMutation.isPending}
+                className="flex-1 py-3 rounded-xl text-sm font-bold transition-all"
+                style={{ background: PURPLE, color: '#fff', boxShadow: '0 0 20px rgba(125,83,255,0.3)' }}
+              >
                 {updateMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
-              </Button>
+              </button>
             </div>
           </Modal>
         )}
@@ -563,6 +577,9 @@ export default function Leads() {
 
 // ─── Componentes auxiliares ───────────────────────────────────────────────────
 
+const LIME = '#B6FF00';
+const PURPLE = '#7D53FF';
+
 function Modal({ children, onClose, title, icon, wide = false }: {
   children: React.ReactNode;
   onClose: () => void;
@@ -571,18 +588,30 @@ function Modal({ children, onClose, title, icon, wide = false }: {
   wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)' }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 16 }}
-        className={`bg-gray-800 rounded-3xl p-8 w-full ${wide ? 'max-w-xl' : 'max-w-lg'} border border-gray-700 shadow-2xl space-y-5`}
+        className={`w-full ${wide ? 'max-w-xl' : 'max-w-lg'} space-y-5`}
+        style={{
+          background: '#0e0e0e',
+          border: '1px solid #222',
+          borderRadius: 24,
+          padding: 32,
+          boxShadow: `0 0 60px rgba(182,255,0,0.06), 0 24px 64px rgba(0,0,0,0.6)`,
+        }}
       >
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             {icon}{title}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors p-1">
+          <button onClick={onClose}
+            className="transition-colors p-1.5 rounded-lg"
+            style={{ color: '#555' }}
+            onMouseEnter={e => (e.currentTarget.style.color = LIME)}
+            onMouseLeave={e => (e.currentTarget.style.color = '#555')}>
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -592,28 +621,54 @@ function Modal({ children, onClose, title, icon, wide = false }: {
   );
 }
 
-function InputField({ label, placeholder, value, onChange }: {
-  label: string; placeholder?: string; value: string; onChange: (v: string) => void;
+function InputField({ label, placeholder, value, onChange, optional }: {
+  label: string; placeholder?: string; value: string; onChange: (v: string) => void; optional?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-400">{label}</label>
-      <input type="text" placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:border-green-500 outline-none" />
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#555', fontFamily: 'Space Mono, monospace' }}>{label}</label>
+        {optional && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#1a1a1a', color: '#444', fontFamily: 'Space Mono, monospace' }}>opcional</span>}
+      </div>
+      <input
+        type="text"
+        placeholder={placeholder}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full text-white text-sm outline-none transition-all"
+        style={{
+          background: '#111', border: '1px solid #222', borderRadius: 12,
+          padding: '12px 16px',
+        }}
+        onFocus={e => (e.currentTarget.style.borderColor = LIME)}
+        onBlur={e => (e.currentTarget.style.borderColor = '#222')}
+      />
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options }: {
+function SelectField({ label, value, onChange, options, optional }: {
   label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string }[]; optional?: boolean;
 }) {
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-400">{label}</label>
-      <select value={value} onChange={e => onChange(e.target.value)}
-        className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:border-green-500 outline-none">
-        {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#555', fontFamily: 'Space Mono, monospace' }}>{label}</label>
+        {optional && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#1a1a1a', color: '#444', fontFamily: 'Space Mono, monospace' }}>opcional</span>}
+      </div>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="w-full text-white text-sm outline-none transition-all cursor-pointer"
+        style={{
+          background: '#111', border: '1px solid #222', borderRadius: 12,
+          padding: '12px 16px', appearance: 'none',
+        }}
+        onFocus={e => (e.currentTarget.style.borderColor = LIME)}
+        onBlur={e => (e.currentTarget.style.borderColor = '#222')}
+      >
+        {options.map(opt => <option key={opt.value} value={opt.value} style={{ background: '#111' }}>{opt.label}</option>)}
       </select>
     </div>
   );
@@ -624,8 +679,11 @@ function TagInput({ label, tags, inputValue, onInputChange, onAdd, onRemove }: {
   onInputChange: (v: string) => void; onAdd: () => void; onRemove: (t: string) => void;
 }) {
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-gray-400">{label}</label>
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <label className="text-xs font-semibold tracking-widest uppercase" style={{ color: '#555', fontFamily: 'Space Mono, monospace' }}>{label}</label>
+        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#1a1a1a', color: '#444', fontFamily: 'Space Mono, monospace' }}>opcional</span>
+      </div>
       <div className="flex gap-2">
         <input
           type="text"
@@ -633,14 +691,23 @@ function TagInput({ label, tags, inputValue, onInputChange, onAdd, onRemove }: {
           value={inputValue}
           onChange={e => onInputChange(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onAdd(); } }}
-          className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:border-green-500 outline-none"
+          className="flex-1 text-white text-sm outline-none transition-all"
+          style={{ background: '#111', border: '1px solid #222', borderRadius: 12, padding: '10px 16px' }}
+          onFocus={e => (e.currentTarget.style.borderColor = LIME)}
+          onBlur={e => (e.currentTarget.style.borderColor = '#222')}
         />
-        <Button size="sm" onClick={onAdd} variant="secondary" className="shrink-0">
+        <button
+          onClick={onAdd}
+          className="shrink-0 flex items-center justify-center rounded-xl transition-all"
+          style={{ background: '#1a1a1a', border: '1px solid #333', color: '#888', padding: '10px 14px' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = LIME; e.currentTarget.style.color = LIME; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.color = '#888'; }}
+        >
           <Tag className="w-4 h-4" />
-        </Button>
+        </button>
       </div>
       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {tags.map(tag => (
             <span key={tag} className={`flex items-center gap-1 text-xs px-2 py-1 rounded-full border ${tagColor(tag)}`}>
               {tag}
