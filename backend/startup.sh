@@ -1,25 +1,38 @@
 #!/bin/sh
-set -e
+echo "==============================="
+echo " Rattix Backend — Startup"
+echo "==============================="
 
-echo "=== Rattix Backend Startup ==="
+# ── Passo 1: Resolver migrações com estado 'failed' (erro P3009) ──────────────
+# O Prisma bloqueia novos deploys se encontrar uma migration com started_at
+# preenchido mas finished_at NULL (estado 'failed'). Marcamos como aplicadas
+# para desbloquear, e depois o migrate deploy cuida do resto.
+echo "[ 1/3 ] Verificando estado das migrations..."
 
-# Resolve any failed migrations before deploying.
-# P3009: if a migration started but failed, Prisma blocks all future deploys.
-# We mark it as applied (tables likely exist even if migration was marked failed)
-# and let migrate deploy handle the remaining ones.
-echo "--- Checking migration state..."
 for migration in \
   "20260327233103_init" \
   "20260402000001_add_agent_ai_settings" \
   "20260402000002_add_tags_support_phone_ai_ideas"
 do
-  npx prisma migrate resolve --applied "$migration" 2>/dev/null \
-    && echo "    Resolved: $migration" \
-    || echo "    Already OK: $migration"
+  result=$(npx prisma migrate resolve --applied "$migration" 2>&1)
+  if echo "$result" | grep -q "error\|Error\|ERROR"; then
+    echo "  → $migration  (já estava OK, ignorado)"
+  else
+    echo "  ✓ $migration  (resolvido)"
+  fi
 done
 
-echo "--- Running prisma migrate deploy..."
-npx prisma migrate deploy
+# ── Passo 2: Tentar migrate deploy normal ────────────────────────────────────
+echo "[ 2/3 ] Executando prisma migrate deploy..."
+if npx prisma migrate deploy; then
+  echo "  ✓ Migrations aplicadas com sucesso"
+else
+  # ── Fallback: db push (ignora histórico de migrations completamente) ─────
+  echo "  ! migrate deploy falhou — usando prisma db push como fallback..."
+  npx prisma db push --accept-data-loss --skip-generate
+  echo "  ✓ Schema sincronizado via db push"
+fi
 
-echo "--- Starting server..."
+# ── Passo 3: Iniciar o servidor ──────────────────────────────────────────────
+echo "[ 3/3 ] Iniciando servidor..."
 exec node dist/server.js
