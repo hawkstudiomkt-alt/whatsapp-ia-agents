@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CliniFlow - Automação Inteligente para Clínicas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container">
+      <div class="logo">
+        <i class="fas fa-robot"></i> CliniFlow
+      </div>
+      <button class="btn-primary" onclick="scrollToForm()">Experimente Grátis</button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <div class="badge">
+            <span class="pulse"></span>
+            IA já Disponível para Clínicas
+          </div>
+          <h1>
+            Automatize o Atendimento da Sua
+            <span class="gradient-text">Clínica</span>
+          </h1>
+          <p>
+            Agentes de IA que atendem 24/7, agendam consultas e respondem pacientes
+            <strong>sem esforço humano</strong>.
+          </p>
+          <div class="hero-buttons">
+            <button class="btn-primary pulse-btn" onclick="scrollToForm()">
+              <i class="fas fa-rocket"></i> Começar Agora - Grátis
+            </button>
+            <button class="btn-secondary" onclick="watchDemo()">
+              <i class="fas fa-play-circle"></i> Ver Demonstração
+            </button>
+          </div>
+          <div class="hero-benefits">
+            <div><i class="fas fa-check-circle"></i> Sem cartão de crédito</div>
+            <div><i class="fas fa-check-circle"></i> Setup em 5 minutos</div>
+            <div><i class="fas fa-check-circle"></i> Suporte 24h</div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="agent-card">
+            <div class="agent-avatar">
+              <i class="fas fa-robot"></i>
+            </div>
+            <h3>Agente de IA</h3>
+            <p>Pronto para atender seus pacientes 24 horas por dia</p>
+            <div class="agent-stats">
+              <div class="agent-stat">
+                <div class="stat-value">24/7</div>
+                <div class="stat-label">Disponível</div>
+              </div>
+              <div class="agent-stat">
+                <div class="stat-value">&lt;1s</div>
+                <div class="stat-label">Resposta</div>
+              </div>
+            </div>
+          </div>
+          <div class="glow glow-1"></div>
+          <div class="glow glow-2"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problems Section -->
+  <section class="problems">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">PROBLEMAS COMUNS</span>
+        <h2>
+          Sua clínica ainda depende de
+          <span class="text-red">atendimento manual</span>?
+        </h2>
+        <p class="section-desc">
+          Perde ligações fora do horário? Pacientes esperam horas para serem atendidos? Sua equipe está sobrecarregada?
+        </p>
+      </div>
+      <div class="problem-grid">
+        <div class="problem-card">
+          <div class="icon-wrap">
+            <i class="fas fa-phone-slash"></i>
+          </div>
+          <h3>Ligações perdidas</h3>
+          <p>80% das ligações fora do horário comercial nunca são retornadas, resultando em pacientes perdidos.</p>
+        </div>
+        <div class="problem-card">
+          <div class="icon-wrap orange">
+            <i class="fas fa-clock"></i>
+          </div>
+          <h3>Tempo de espera</h3>
+          <p>Pacientes esperam em média 15 minutos para serem atendidos por telefone, gerando insatisfação.</p>
+        </div>
+        <div class="problem-card">
+          <div class="icon-wrap yellow">
+            <i class="fas fa-user-times"></i>
+          </div>
+          <h3>Sobrecarga da equipe</h3>
+          <p>Funcionários gastam 40% do tempo apenas agendando e confirmando consultas manualmente.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution Section -->
+  <section class="solution">
+    <div class="container">
+      <div class="solution-grid">
+        <div class="solution-content">
+          <span class="section-tag accent">A SOLUÇÃO</span>
+          <h2>
+            Agentes AI que <span class="gradient-text">trabalham por você</span>
+          </h2>
+          <div class="solution-features">
+            <div class="solution-feature">
+              <div class="icon primary">
+                <i class="fas fa-calendar-check"></i>
+              </div>
+              <div>
+                <h4>Agendamento Automático</h4>
+                <p>Marcar consultas integrada com seus sistemas de clínica</p>
+              </div>
+            </div>
+            <div class="solution-feature">
+              <div class="icon accent">
+                <i class="fas fa-comments"></i>
+              </div>
+              <div>
+                <h4>Atendimento Natural</h4>
+                <p>Conversas humanizadas via WhatsApp, Instagram e site</p>
+              </div>
+            </div>
+            <div class="solution-feature">
+              <div class="icon secondary">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div>
+                <h4>Dashboard Completo</h4>
+                <p>Métricas em tempo real e relatórios de performance</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="solution-visual">
+          <div class="chat-mockup">
+            <div class="bg-glow"></div>
+            <div class="chat-header">
+              <div class="chat-avatar-sm">
+                <i class="fas fa-robot"></i>
+              </div>
+              <div>
+                <h4>Agente CliniFlow</h4>
+                <p class="online">Online agora</p>
+              </div>
+              <span class="badge-ai">IA Inteligente</span>
+            </div>
+            <div class="chat-msgs" id="chat-container"></div>
+            <div class="typing-indicator" id="typing-indicator" style="display:none;">
+              <div class="bounce-dot"></div>
+              <div class="bounce-dot"></div>
+              <div class="bounce-dot"></div>
+              <span>Digitando...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">FUNCIONALIDADES</span>
+        <h2>
+          Tudo que sua clínica precisa
+          <span class="gradient-text">em uma plataforma</span>
+        </h2>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-card-header bg-primary">
+            <i class="fas fa-brain"></i>
+          </div>
+          <h3>IA Personalizada</h3>
+          <p>Treine o agente com informações específicas da sua clínica, horários e preços.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Entende termos médicos</li>
+            <li><i class="fas fa-check"></i> Responde com precisão</li>
+            <li><i class="fas fa-check"></i> Aprende com interações</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-header bg-accent">
+            <i class="fas fa-mobile-alt"></i>
+          </div>
+          <h3>Multi-canais</h3>
+          <p>Atenda em WhatsApp, Instagram, Facebook e site com uma única plataforma.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> WhatsApp API oficial</li>
+            <li><i class="fas fa-check"></i> Instagram DM automático</li>
+            <li><i class="fas fa-check"></i> Chat widget integrado</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-header bg-secondary">
+            <i class="fas fa-calendar-alt"></i>
+          </div>
+          <h3>Agendamento Inteligente</h3>
+          <p>Agenda automaticamente no seu sistema (SoftDoctor, Clinicorp, etc).</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Integração nativa</li>
+            <li><i class="fas fa-check"></i> Disponibilidade em tempo real</li>
+            <li><i class="fas fa-check"></i> Confirmação automática</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-header bg-purple">
+            <i class="fas fa-language"></i>
+          </div>
+          <h3>Português Natural</h3>
+          <p>IA treinada especificamente para o português brasileiro e termos da saúde.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Variações regionais</li>
+            <li><i class="fas fa-check"></i> Gírias médicas</li>
+            <li><i class="fas fa-check"></i> Pronúncia natural</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-header bg-green">
+            <i class="fas fa-chart-bar"></i>
+          </div>
+          <h3>Analytics Poderoso</h3>
+          <p>Acompanhe conversões, taxa de resposta e satisfação dos pacientes.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Dashboard em tempo real</li>
+            <li><i class="fas fa-check"></i> Relatórios automáticos</li>
+            <li><i class="fas fa-check"></i> Métricas de performance</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <div class="feature-card-header bg-orange">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h3>Seguro e LGPD</h3>
+          <p>Seus dados e informações de pacientes protegidos com criptografia avançada.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Criptografia AES-256</li>
+            <li><i class="fas fa-check"></i> Compliance LGPD</li>
+            <li><i class="fas fa-check"></i> Backup automático</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chat Demo Section -->
+  <section class="chat-demo">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">DEMONSTRAÇÃO</span>
+        <h2>
+          Veja o <span class="gradient-text">CliniFlow</span> em ação
+        </h2>
+        <p class="section-desc">Uma conversa real entre um paciente e seu agente de IA. Note a naturalidade e agilidade.</p>
+      </div>
+      <div class="chat-wrapper">
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-avatar-sm">
+              <i class="fas fa-robot"></i>
+            </div>
+            <div>
+              <h4>Agente CliniFlow</h4>
+              <p class="online">Online agora</p>
+            </div>
+            <span class="badge-ai">IA Inteligente</span>
+          </div>
+          <div class="chat-msgs" id="chat-container"></div>
+          <div class="typing-indicator" id="typing-indicator" style="display:none;">
+            <div class="bounce-dot"></div>
+            <div class="bounce-dot"></div>
+            <div class="bounce-dot"></div>
+            <span>Digitando...</span>
+          </div>
+        </div>
+        <div class="text-center">
+          <button class="btn-secondary" onclick="restartChat()">
+            <i class="fas fa-redo"></i> Ver conversa novamente
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Form Section -->
+  <section class="form-section" id="form-section">
+    <div class="container">
+      <div class="form-wrapper">
+        <div class="section-header">
+          <span class="section-tag">QUERO AUTOMATIZAR MINHA CLÍNICA</span>
+          <h2>
+            Pronto para escalar seu
+            <span class="gradient-text">atendimento?</span>
+          </h2>
+          <p class="section-desc">
+            Preencha o formulário abaixo e agende uma demonstração personalizada.
+          </p>
+        </div>
+        <div class="form-card">
+          <form id="lead-form">
+            <!-- Step 1 -->
+            <div class="form-step active" data-step="1">
+              <label class="form-label">Qual é o tipo da sua clínica? *</label>
+              <div class="option-cards">
+                <label class="option-card">
+                  <input type="radio" name="clinic_type" value="medica">
+                  <div class="option-content">
+                    <i class="fas fa-stethoscope"></i>
+                    <div>Médica</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="clinic_type" value="odontologica">
+                  <div class="option-content">
+                    <i class="fas fa-tooth"></i>
+                    <div>Odontológica</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="clinic_type" value="veterinaria">
+                  <div class="option-content">
+                    <i class="fas fa-paw"></i>
+                    <div>Veterinária</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="clinic_type" value="estetica">
+                  <div class="option-content">
+                    <i class="fas fa-spa"></i>
+                    <div>Estética</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="form-step hidden" data-step="2">
+              <label class="form-label">Quantos pacientes sua clínica atende por mês? *</label>
+              <div class="option-cards">
+                <label class="option-card">
+                  <input type="radio" name="patients_count" value="menos-500">
+                  <div class="option-content">
+                    <div class="stat-value">&lt;500</div>
+                    <div>Pacientes/mês</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="patients_count" value="500-2000">
+                  <div class="option-content">
+                    <div class="stat-value">500-2.000</div>
+                    <div>Pacientes/mês</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="patients_count" value="mais-2000">
+                  <div class="option-content">
+                    <div class="stat-value">&gt;2.000</div>
+                    <div>Pacientes/mês</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="form-step hidden" data-step="3">
+              <label class="form-label">Qual seu maior desafio no atendimento? (selecione todos)</label>
+              <div class="checkbox-list">
+                <label>
+                  <input type="checkbox" name="challenges" value="ligacoes-perdidas">
+                  <span class="checkmark"></span>
+                  Ligações fora do horário não são atendidas
+                </label>
+                <label>
+                  <input type="checkbox" name="challenges" value="tempo-espera">
+                  <span class="checkmark"></span>
+                  Pacientes esperam muito tempo no telefone
+                </label>
+                <label>
+                  <input type="checkbox" name="challenges" value="agendamento">
+                  <span class="checkmark"></span>
+                  Dificuldade em organizar agendamentos
+                </label>
+                <label>
+                  <input type="checkbox" name="challenges" value="cancelacoes">
+                  <span class="checkmark"></span>
+                  Alta taxa de cancelamentos
+                </label>
+                <label>
+                  <input type="checkbox" name="challenges" value="equipe">
+                  <span class="checkmark"></span>
+                  Equipe sobrecarregada com tarefas repetitivas
+                </label>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="form-step hidden" data-step="4">
+              <label class="form-label">Você já utiliza algum sistema de automação? *</label>
+              <div class="option-cards">
+                <label class="option-card">
+                  <input type="radio" name="current_tool" value="whatsapp-business">
+                  <div class="option-content">
+                    <i class="fab fa-whatsapp"></i>
+                    <div>WhatsApp Business</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="current_tool" value="google">
+                  <div class="option-content">
+                    <i class="fab fa-google"></i>
+                    <div>Google Meu Negócio</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="current_tool" value="sistema-interno">
+                  <div class="option-content">
+                    <i class="fas fa-desktop"></i>
+                    <div>Sistema interno</div>
+                  </div>
+                </label>
+                <label class="option-card">
+                  <input type="radio" name="current_tool" value="nenhum">
+                  <div class="option-content">
+                    <i class="fas fa-times-circle"></i>
+                    <div>Nenhum</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="form-step hidden" data-step="5">
+              <label class="form-label">Qual o melhor horário para uma demonstração? *</label>
+              <input type="text" id="datetime-input" class="form-input" placeholder="Ex: Segunda-feira, 15/04 às 14h">
+              <p class="help-text"><i class="far fa-clock"></i> Demonstração dura cerca de 15 minutos</p>
+
+              <label class="form-label">Deixe um recado para nossa equipe (opcional)</label>
+              <textarea name="message" rows="4" class="form-input" placeholder="Alguma dúvida ou informação importante?"></textarea>
+            </div>
+
+            <!-- Progress & Navigation -->
+            <div class="form-nav">
+              <div class="progress-bar">
+                <div class="progress-label">
+                  <span>Progresso</span>
+                  <span id="progress-text">1 de 5</span>
+                </div>
+                <div class="progress-track">
+                  <div class="progress-fill" id="progress-bar" style="width: 20%;"></div>
+                </div>
+              </div>
+
+              <div class="nav-buttons">
+                <button type="button" id="prev-btn" class="btn-prev hidden">
+                  <i class="fas fa-arrow-left"></i> Anterior
+                </button>
+                <button type="button" id="next-btn" class="btn-next">
+                  Próximo <i class="fas fa-arrow-right"></i>
+                </button>
+                <button type="submit" id="submit-btn" class="btn-submit hidden">
+                  <i class="fas fa-check"></i> Agendar Demonstração
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="logo">
+            <i class="fas fa-robot"></i> CliniFlow
+          </div>
+          <p>© 2025 CliniFlow. Todos os direitos reservados.</p>
+        </div>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin"></i></a>
+          <a href="#"><i class="fab fa-facebook"></i></a>
+          <a href="#"><i class="fab fa-youtube"></i></a>
+        </div>
+      </div>
+      <div class="footer-security">
+        <p><i class="fas fa-lock"></i> Seus dados estão seguros. Utilizamos criptografia de ponta e seguimos a LGPD.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="success-icon">
+        <i class="fas fa-check"></i>
+      </div>
+      <h3>Pré-cadastro recebido!</h3>
+      <p>Entraremos em contato em até 24 horas para agendar sua demonstração personalizada.</p>
+      <button id="close-modal" class="btn-primary">Entendi!</button>
+    </div>
+  </div>
+
+  <script src="landing.js"></script>
+</body>
+</html>

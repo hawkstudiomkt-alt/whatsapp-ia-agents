@@ -6,7 +6,7 @@ import {
   Plus, Trash2, Edit, Bot, Sparkles, MessageSquare, Mic, Shield,
   Stethoscope, ShoppingCart, Home, UtensilsCrossed, Headphones,
   GraduationCap, Wand2, BookOpen, ChevronLeft, Save, Star, Thermometer,
-  History, X
+  History, X, Power, Pause, Play, Ticket, Activity
 } from 'lucide-react';
 import { Card, Button, Badge, LoadingSpinner, PageTransition } from '../components/ui';
 
@@ -307,6 +307,68 @@ Você é **Ana**, assistente acadêmica virtual. Motivadora, organizada e dedica
     },
   },
   {
+    id: 'evento-ingresso',
+    icon: Ticket,
+    name: 'Eventos / Ingressos',
+    description: 'SDR para venda de ingressos e captação para eventos presenciais',
+    color: 'from-rose-500/20 to-pink-500/20',
+    borderColor: 'border-rose-500/40',
+    iconColor: 'text-rose-400',
+    defaults: {
+      name: 'Ana Clara — SDR de Eventos',
+      tone: 'friendly',
+      language: 'pt-BR',
+      aiModel: 'openai/gpt-4o-mini',
+      temperature: 0.82,
+      historyLimit: 10,
+      systemPrompt: `# Identidade do Agente
+Você é **Ana Clara**, uma atendente calorosa e entusiasmada que faz parte da organização do evento. Sua missão é acolher as pessoas, explicar os detalhes do evento e ajudá-las a garantir seu ingresso. Você tem habilidades de SDR, mas sua abordagem é sempre **acolhimento genuíno + entusiasmo pelo evento**. Nunca use pressão. A pessoa deve sentir que está falando com uma amiga animada, não com um robô de vendas.
+
+# Personalidade
+- **Características:** Acolhedora, alegre, espontânea e próxima das pessoas
+- **Estilo:** Fala como alguém digitando rápido no WhatsApp. Frases curtas, linguagem simples, tom leve e natural. Evite qualquer linguagem formal ou corporativa.
+
+# Estilo de Comunicação
+✅ Certo: "Oi! Que bom que você entrou em contato! 🎉 O evento vai ser incrível!"
+❌ Errado: "Prezado cliente, agradecemos seu contato e informamos que..."
+
+# Regras Críticas de WhatsApp
+- Máximo de **2 a 3 mensagens curtas** por resposta — nunca uma parede de texto
+- Se a resposta for simples, mande 1 mensagem só
+- Use emojis com naturalidade, mas sem exagero
+- Nunca use asteriscos ou markdown visível — é WhatsApp, não email
+- Quebras de linha ajudam a respirar o texto
+
+# Funil de Atendimento
+1. **Boas-vindas:** Cumprimente com energia e identifique o interesse da pessoa
+2. **Apresentação:** Conte sobre o evento de forma empolgante — experiência, palestrantes, diferenciais
+3. **Qualificação:** Entenda se é para uso próprio ou vai trazer alguém junto
+4. **Fechamento:** Ofereça o link de compra de forma natural, sem pressão
+5. **Objeções:** Acolha com empatia, responda com clareza e re-ofereça
+
+# Sobre o Evento
+[PREENCHA: Nome do evento, data, horário, local, palestrantes/atrações, valores dos ingressos, link de compra]
+
+# Perguntas Frequentes Modelo
+- "Qual o valor do ingresso?" → Informe os lotes disponíveis e destaque o melhor custo-benefício
+- "Tem estacionamento?" → Responda com o que souber e ofereça o endereço completo
+- "Posso levar criança?" → Esclareça a faixa etária e política do evento
+- "Como funciona o pagamento?" → Explique as formas aceitas (cartão, PIX, etc.)
+
+# Tom e Fechamento
+Sempre encerre com uma frase convidativa e deixe a porta aberta:
+"Se tiver mais alguma dúvida, é só falar! A gente mal pode esperar pra te ver lá 🙌"`,
+      instructions: `1. Cumprimente com energia e pergunte como pode ajudar
+2. Apresente o evento de forma empolgante: experiência, data, local, atrações
+3. Responda dúvidas sobre ingressos, local, horário e programação
+4. Identifique se a pessoa vai sozinha ou quer levar alguém (aumenta ticket)
+5. Ofereça o link de compra de forma natural quando perceber interesse
+6. Se houver objeção de preço: reforce o valor da experiência, mencione lotes
+7. Encerre sempre com entusiasmo e convite caloroso`,
+      guardrails: `Não pressione o lead. Não invente informações sobre o evento que não estejam no seu contexto. Não prometa reembolso ou troca sem verificar a política oficial. Não faça promoções não autorizadas.`,
+    },
+  },
+  {
     id: 'custom',
     icon: Wand2,
     name: 'Personalizado',
@@ -382,6 +444,12 @@ export default function Agents() {
 
   const deleteMutation = useMutation({
     mutationFn: agentsApi.delete,
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['agents'] }); },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      agentsApi.toggleStatus(id, status),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['agents'] }); },
   });
 
@@ -511,6 +579,31 @@ export default function Agents() {
             <Plus className="w-5 h-5" /> Novo Agente
           </Button>
         </div>
+
+        {/* Active Agents Overview Bar */}
+        {agents && agents.length > 0 && (
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="flex items-center gap-2 bg-gray-800/80 px-4 py-2.5 rounded-2xl border border-gray-700/50">
+              <Activity className="w-4 h-4 text-gray-400" />
+              <span className="text-sm text-gray-400 font-medium">{agents.length} agente{agents.length !== 1 ? 's' : ''} no total</span>
+            </div>
+            {['ACTIVE', 'PAUSED', 'STOPPED'].map((s) => {
+              const count = agents.filter(a => a.status === s).length;
+              if (count === 0) return null;
+              const cfg = {
+                ACTIVE:  { dot: 'bg-green-500 animate-pulse', text: 'text-green-400',  label: 'Ativo',   bg: 'bg-green-500/10 border-green-500/30' },
+                PAUSED:  { dot: 'bg-yellow-500',              text: 'text-yellow-400', label: 'Pausado', bg: 'bg-yellow-500/10 border-yellow-500/30' },
+                STOPPED: { dot: 'bg-red-500',                 text: 'text-red-400',    label: 'Parado',  bg: 'bg-red-500/10 border-red-500/30' },
+              }[s]!;
+              return (
+                <div key={s} className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border ${cfg.bg}`}>
+                  <div className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                  <span className={`text-sm font-bold ${cfg.text}`}>{count} {cfg.label}{count !== 1 ? 's' : ''}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Modal */}
         <AnimatePresence>
@@ -948,6 +1041,24 @@ export default function Agents() {
                     </div>
 
                     <div className="flex flex-row md:flex-col gap-2 shrink-0">
+                      {/* Toggle Ativo/Pausado */}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className={`gap-2 transition-all ${
+                          agent.status === 'ACTIVE'
+                            ? 'border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/10'
+                            : 'border-green-500/40 text-green-400 hover:bg-green-500/10'
+                        }`}
+                        onClick={() => toggleStatusMutation.mutate({ id: agent.id, status: agent.status })}
+                        disabled={toggleStatusMutation.isPending}
+                        title={agent.status === 'ACTIVE' ? 'Pausar agente' : 'Ativar agente'}
+                      >
+                        {agent.status === 'ACTIVE'
+                          ? <><Pause className="w-4 h-4" /> Pausar</>
+                          : <><Play className="w-4 h-4" /> Ativar</>
+                        }
+                      </Button>
                       <Button variant="secondary" size="sm" onClick={() => handleEdit(agent)} className="gap-2">
                         <Edit className="w-4 h-4" /> Editar
                       </Button>

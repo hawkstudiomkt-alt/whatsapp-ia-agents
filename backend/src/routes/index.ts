@@ -50,11 +50,15 @@ export async function routes(app: FastifyInstance) {
     app.get('/leads/:id', leadController.findById.bind(leadController));
     app.put('/leads/:id', leadController.update.bind(leadController));
     app.patch('/leads/:id/status', leadController.updateStatus.bind(leadController));
+    app.patch('/leads/:id/ai-update', leadController.aiUpdate.bind(leadController));
 
     // Analytics
     app.get('/analytics/summary', analyticsController.getSummary.bind(analyticsController));
     app.get('/analytics/daily', analyticsController.getDailyAnalytics.bind(analyticsController));
     app.get('/analytics/agents/:agentId', analyticsController.getAgentPerformance.bind(analyticsController));
+    app.get('/analytics/dashboard', analyticsController.getDashboardData.bind(analyticsController));
+    app.get('/analytics/funnel', analyticsController.getFunnelData.bind(analyticsController));
+    app.get('/analytics/leads/breakdown', analyticsController.getLeadBreakdown.bind(analyticsController));
 
     // Atendentes Humanos
     app.post('/human-attendees', humanAttendeeController.create.bind(humanAttendeeController));

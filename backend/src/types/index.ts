@@ -3,6 +3,7 @@ export interface EvolutionWebhook {
   event: string;
   instance: string;
   data: {
+    state: any;
     key: {
       remoteJid: string;
       fromMe: boolean;

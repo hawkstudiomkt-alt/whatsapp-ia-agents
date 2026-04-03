@@ -1,6 +1,8 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { instanceService } from '../services/instance.service';
 import { messageService } from '../services/message.service';
+import { leadService } from '../services/lead.service';
+import { analyticsService } from '../services/analytics.service';
 import { prisma } from '../config/database';
 import { EvolutionWebhook } from '../types';
 
@@ -18,6 +20,53 @@ async function triggerN8n(payload: Record<string, unknown>) {
   } catch (err) {
     // Log mas não quebra o fluxo principal
     console.error('[webhook] Falha ao chamar n8n:', err);
+  }
+}
+
+/**
+ * Auto-qualifica o lead com base na mensagem recebida e histórico da conversa.
+ * Executado de forma assíncrona (fire-and-forget) para não bloquear a resposta.
+ */
+async function autoQualifyLead(
+  lead: { id: string; status: string; score: number | null; email: string | null; name: string | null },
+  content: string,
+  conversationId: string,
+  instanceId: string
+) {
+  const updates: Record<string, unknown> = {};
+
+  // Extrai informações da mensagem (email, intenção de compra, etc.)
+  const extracted = await leadService.extractLeadInfo(content);
+
+  if (extracted.email && !lead.email) {
+    updates.email = extracted.email;
+  }
+
+  const scoreDelta = extracted.score || 0;
+  const currentScore = (lead.score || 0) + scoreDelta;
+  if (scoreDelta > 0) {
+    updates.score = Math.min(100, currentScore);
+  }
+
+  // Conta mensagens para checar qualificação por volume
+  const msgCount = await prisma.message.count({ where: { conversationId } });
+
+  // Verifica se deve qualificar
+  if (lead.status === 'NEW') {
+    const candidate = {
+      ...lead,
+      score: currentScore,
+      email: (extracted.email as string | undefined) || lead.email || undefined,
+    };
+    if (leadService.shouldQualify(candidate, msgCount)) {
+      updates.status = 'QUALIFIED';
+      // Registra nas analytics diárias
+      await analyticsService.recordLeadQualified(instanceId);
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await prisma.lead.update({ where: { id: lead.id }, data: updates });
   }
 }
 
@@ -148,6 +197,12 @@ export const webhookController = {
         instanceId: instance.id,
         timestamp: new Date(),
       });
+
+      // ── Auto-qualificação de leads ─────────────────────────────────────────
+      // Roda de forma assíncrona para não atrasar a resposta ao Evolution
+      autoQualifyLead(lead, content, conversation.id, instance.id).catch(err =>
+        console.error('[webhook] Erro na auto-qualificação:', err)
+      );
 
       // Dispara o n8n de forma assíncrona com todos os dados necessários
       const n8nPayload = {

@@ -71,4 +71,75 @@ export const leadController = {
       return reply.status(404).send({ error: 'Lead not found' });
     }
   },
+
+  /**
+   * Atualização pelo n8n depois de cada resposta da IA
+   * Aceita sinais extraídos do formato <<IA_LEAD:...>>
+   */
+  async aiUpdate(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as { id: string };
+    const { score_delta, notes_to_add, status, signals } = request.body as {
+      score_delta?: number;
+      notes_to_add?: string;
+      status?: LeadStatus;
+      signals?: string[]; // ex: ["SCORE:+15", "STATUS:QUALIFIED", "NOTE:texto"]
+    };
+
+    try {
+      const lead = await leadService.findById(id);
+      if (!lead) return reply.status(404).send({ error: 'Lead not found' });
+
+      const updates: Record<string, unknown> = {};
+      const dateStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+      // Processa sinais estruturados vindos do n8n
+      if (signals && signals.length > 0) {
+        for (const signal of signals) {
+          if (signal.startsWith('SCORE:')) {
+            const delta = parseInt(signal.replace('SCORE:', ''), 10);
+            if (!isNaN(delta)) {
+              updates.score = Math.min(100, Math.max(0, (lead.score || 0) + delta));
+            }
+          } else if (signal.startsWith('STATUS:')) {
+            const newStatus = signal.replace('STATUS:', '') as LeadStatus;
+            if (['NEW', 'QUALIFIED', 'DISQUALIFIED', 'CONVERTED'].includes(newStatus)) {
+              // Só muda para frente no funil, nunca regride
+              const statusOrder = { NEW: 0, QUALIFIED: 1, DISQUALIFIED: 1, CONVERTED: 2 };
+              if ((statusOrder[newStatus] || 0) >= (statusOrder[lead.status] || 0)) {
+                updates.status = newStatus;
+              }
+            }
+          } else if (signal.startsWith('NOTE:')) {
+            const note = signal.replace('NOTE:', '').trim();
+            if (note) {
+              const newNote = `[${dateStr}] ${note}`;
+              updates.notes = lead.notes ? `${lead.notes}\n${newNote}` : newNote;
+            }
+          }
+        }
+      }
+
+      // Suporte a campos diretos também
+      if (score_delta !== undefined) {
+        updates.score = Math.min(100, Math.max(0, (lead.score || 0) + score_delta));
+      }
+      if (notes_to_add) {
+        const newNote = `[${dateStr}] ${notes_to_add}`;
+        updates.notes = lead.notes ? `${lead.notes}\n${newNote}` : newNote;
+      }
+      if (status) {
+        updates.status = status;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return reply.send(lead);
+      }
+
+      const updated = await leadService.update(id, updates as Parameters<typeof leadService.update>[1]);
+      return reply.send(updated);
+    } catch (error) {
+      console.error('[lead/ai-update] Erro:', error);
+      return reply.status(500).send({ error: 'Erro ao atualizar lead via IA' });
+    }
+  },
 };

@@ -134,6 +134,16 @@
     },
     {
       "parameters": {
+        "jsCode": "// Adiciona instruções de qualificação ao systemContent do item anterior\nconst item = $input.item.json;\n\nconst qualificationInstructions = `\n\n## Sistema de Qualificação de Leads (INTERNO — nunca mostre ao usuário)\nVocê deve analisar silenciosamente a conversa e emitir sinais de qualificação no FINAL de cada resposta sua, APÓS o texto visível ao usuário.\nOs sinais são invisíveis para o cliente — serão removidos antes do envio.\n\nFormato dos sinais: <<IA_LEAD:TIPO:VALOR>>\n\nTipos disponíveis:\n- SCORE: Ajuste de pontuação (ex: <<IA_LEAD:SCORE:+15>>, <<IA_LEAD:SCORE:+30>>)\n- STATUS: Mudança de status (<<IA_LEAD:STATUS:QUALIFIED>>, <<IA_LEAD:STATUS:CONVERTED>>, <<IA_LEAD:STATUS:DISQUALIFIED>>)\n- NOTE: Nota sobre o lead (<<IA_LEAD:NOTE:cliente perguntou sobre plano premium>>)\n\nRegras de pontuação:\n- Lead respondeu e demonstrou interesse: +10\n- Lead perguntou sobre preço/planos: +15\n- Lead pediu mais detalhes sobre o produto: +15\n- Lead demonstrou intenção clara de compra: +25\n- Lead pediu para fechar negócio/comprar: +30\n- Lead demonstrou desinteresse: -10\n\nRegras de status:\n- Emita STATUS:QUALIFIED quando score total indicar interesse genuíno e lead deu informações de contato ou demonstrou intenção\n- Emita STATUS:CONVERTED quando lead confirmou compra/contratação\n- Emita STATUS:DISQUALIFIED quando lead explicitamente recusou ou é spam\n\nSempre emita pelo menos um sinal NOTE por conversa para registrar informações relevantes.\nNão emita mais de 3 sinais por resposta. Só emita sinais quando relevante.`;\n\n// Injeta após o system message\nconst messages = item.messages || [];\nif (messages.length > 0 && messages[0].role === 'system') {\n  messages[0].content = messages[0].content + qualificationInstructions;\n}\n\nreturn [{ json: { ...item, messages } }];"
+      },
+      "id": "inject-qualification",
+      "name": "Injeta Instruções de Qualificação",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://openrouter.ai/api/v1/chat/completions",
         "sendHeaders": true,
@@ -166,7 +176,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const openrouterResponse = $input.item.json;\nconst prevData = $('Monta Contexto para IA').item.json;\n\nconst aiResponse = openrouterResponse.choices?.[0]?.message?.content || '';\n\nif (!aiResponse) throw new Error('IA retornou resposta vazia');\n\nreturn [{\n  json: {\n    aiResponse,\n    instanceName:   prevData.instanceName,\n    phoneNumber:    prevData.phoneNumber,\n    conversationId: prevData.conversationId,\n    instanceId:     prevData.instanceId\n  }\n}];"
+        "jsCode": "const openrouterResponse = $input.item.json;\nconst prevData = $('Injeta Instruções de Qualificação').item.json;\n\nconst rawResponse = openrouterResponse.choices?.[0]?.message?.content || '';\n\nif (!rawResponse) throw new Error('IA retornou resposta vazia');\n\n// ─── Extrai sinais de qualificação ──────────────────────────────────────────\nconst signalRegex = /<<IA_LEAD:([^>]+)>>/g;\nconst signals = [];\nlet match;\nwhile ((match = signalRegex.exec(rawResponse)) !== null) {\n  signals.push(match[1]);\n}\n\n// Remove os sinais da resposta antes de enviar ao usuário\nconst aiResponse = rawResponse.replace(/<<IA_LEAD:[^>]+>>/g, '').trim();\n\n// Recupera o leadId do webhook original\nconst webhookData = $('Recebe Mensagem do Backend').item.json.body;\n\nreturn [{\n  json: {\n    aiResponse,\n    signals,\n    leadId:         webhookData.leadId,\n    instanceName:   prevData.instanceName,\n    phoneNumber:    prevData.phoneNumber,\n    conversationId: prevData.conversationId,\n    instanceId:     prevData.instanceId\n  }\n}];"
       },
       "id": "extract-response",
       "name": "Extrai Resposta da IA",
@@ -231,6 +241,37 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://n8n-whatsapp-backend.zscidy.easypanel.host/api/leads/{{ $('Extrai Resposta da IA').item.json.leadId }}/ai-update",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Autentica no Backend').item.json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify({ signals: $('Extrai Resposta da IA').item.json.signals }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "update-lead-signals",
+      "name": "Atualiza Lead via Sinais",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 300],
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -264,6 +305,11 @@
     },
     "Monta Contexto para IA": {
       "main": [
+        [{ "node": "Injeta Instruções de Qualificação", "type": "main", "index": 0 }]
+      ]
+    },
+    "Injeta Instruções de Qualificação": {
+      "main": [
         [{ "node": "Chama IA (OpenRouter)", "type": "main", "index": 0 }]
       ]
     },
@@ -280,6 +326,11 @@
     "Envia Resposta WhatsApp": {
       "main": [
         [{ "node": "Salva Resposta no Backend", "type": "main", "index": 0 }]
+      ]
+    },
+    "Salva Resposta no Backend": {
+      "main": [
+        [{ "node": "Atualiza Lead via Sinais", "type": "main", "index": 0 }]
       ]
     }
   },

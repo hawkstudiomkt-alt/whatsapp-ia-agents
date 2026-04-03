@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CliniFlow - Automação Inteligente para Clínicas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="landing.css">
+</head>
+<body class="bg-dark text-white overflow-x-hidden">
+  <!-- Animated Background Stripes -->
+  <div class="fixed inset-0 z-0 opacity-20">
+    <div class="absolute inset-0 bg-gradient-to-br from-primary via-secondary to-accent animate-gradient"></div>
+    <div class="absolute inset-0 repeating-linear-gradient"></div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="fixed w-full z-50 bg-dark-bg/80 backdrop-blur-lg border-b border-white/10">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+        <i class="fas fa-robot mr-2"></i>CliniFlow
+      </div>
+      <button id="nav-cta" class="px-6 py-2.5 bg-gradient-to-r from-primary to-accent rounded-full font-semibold hover:scale-105 transition-transform shadow-lg">
+        Experimente Grátis
+      </button>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero min-h-screen flex items-center relative z-10">
+    <div class="container mx-auto px-6 py-20">
+      <div class="grid md:grid-cols-2 gap-12 items-center">
+        <div class="hero-content">
+          <div class="inline-flex items-center px-4 py-2 bg-white/5 rounded-full border border-white/10 mb-6 animate-fade-in">
+            <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+            <span class="text-sm">IA já Disponível para Clínicas</span>
+          </div>
+
+          <h1 class="text-5xl md:text-7xl font-bold leading-tight mb-8 animate-fade-in-up delay-100">
+            Automatize o Atendimento da Sua
+            <span class="bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
+              Clínica
+            </span>
+          </h1>
+
+          <p class="text-xl md:text-2xl text-gray-300 mb-10 animate-fade-in-up delay-200">
+            Agentes de IA que atendem 24/7, agendam consultas e respondem pacientes
+            <strong class="text-white">sem esforço humano</strong>.
+          </p>
+
+          <div class="flex flex-col sm:flex-row gap-4 mb-8 animate-fade-in-up delay-300">
+            <button id="hero-cta" class="px-8 py-4 bg-gradient-to-r from-primary to-accent rounded-full font-bold text-lg hover:scale-105 transition-all shadow-xl shadow-primary/30 animate-pulse">
+              <i class="fas fa-rocket mr-2"></i>Começar Agora - Grátis
+            </button>
+            <button class="px-8 py-4 border-2 border-white/20 rounded-full font-semibold hover:bg-white/10 transition-all">
+              <i class="fas fa-play-circle mr-2"></i>Ver Demonstração
+            </button>
+          </div>
+
+          <div class="flex items-center gap-8 animate-fade-in delay-400">
+            <div class="text-sm text-gray-400">
+              <i class="fas fa-check-circle text-green-400 mr-1"></i>
+              Sem cartão de crédito
+            </div>
+            <div class="text-sm text-gray-400">
+              <i class="fas fa-check-circle text-green-400 mr-1"></i>
+              Setup em 5 minutos
+            </div>
+            <div class="text-sm text-gray-400">
+              <i class="fas fa-check-circle text-green-400 mr-1"></i>
+              Suporte 24h
+            </div>
+          </div>
+        </div>
+
+        <!-- Animated Agent Visual -->
+        <div class="relative h-[600px] animate-fade-in-left delay-200">
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="relative w-full max-w-md">
+              <!-- Agent Avatar -->
+              <div class="relative z-10 bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl rounded-3xl p-8 border border-white/10 animate-float">
+                <div class="flex flex-col items-center text-center">
+                  <div class="w-32 h-32 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center mb-6 animate-pulse-glow">
+                    <i class="fas fa-robot text-5xl text-white"></i>
+                  </div>
+                  <h3 class="text-2xl font-bold mb-2">Agente de IA</h3>
+                  <p class="text-gray-300 mb-6">Pronto para atender seus pacientes 24 horas por dia</p>
+
+                  <!-- Status Indicators -->
+                  <div class="grid grid-cols-2 gap-4 w-full">
+                    <div class="bg-white/5 rounded-xl p-4 text-center">
+                      <div class="text-2xl font-bold text-green-400">24/7</div>
+                      <div class="text-xs text-gray-400">Disponível</div>
+                    </div>
+                    <div class="bg-white/5 rounded-xl p-4 text-center">
+                      <div class="text-2xl font-bold text-primary">&lt;1s</div>
+                      <div class="text-xs text-gray-400">Tempo de Resposta</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Floating Elements -->
+              <div class="absolute top-10 right-0 w-20 h-20 bg-accent/30 rounded-full blur-2xl animate-float-delay"></div>
+              <div class="absolute bottom-20 left-0 w-24 h-24 bg-primary/30 rounded-full blur-2xl animate-float-delay-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problems Section -->
+  <section class="problems py-24 relative z-10 bg-gradient-to-b from-transparent to-primary/5">
+    <div class="container mx-auto px-6">
+      <div class="text-center mb-16 animate-fade-in">
+        <span class="text-primary font-semibold mb-4 block">PROBLEMAS COMUNS</span>
+        <h2 class="text-4xl md:text-5xl font-bold mb-6">
+          Sua clínica ainda depende de
+          <span class="text-red-400">atendimento manual</span>?
+        </h2>
+        <p class="text-xl text-gray-400 max-w-2xl mx-auto">
+          Perde ligações fora do horário? Pacientes esperam horas para serem atendidos?
+          Sua equipe está sobrecarregada?
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <div class="problem-card bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:scale-105 transition-transform animate-fade-in-up delay-100">
+          <div class="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+            <i class="fas fa-phone-slash text-2xl text-red-400"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-4">Ligações perdidas</h3>
+          <p class="text-gray-400">
+            80% das ligações fora do horário comercial nunca são retornadas, resultando em pacientes perdidos.
+          </p>
+        </div>
+
+        <div class="problem-card bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:scale-105 transition-transform animate-fade-in-up delay-200">
+          <div class="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mb-6">
+            <i class="fas fa-clock text-2xl text-orange-400"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-4">Tempo de espera</h3>
+          <p class="text-gray-400">
+            Pacientes esperam em média 15 minutos para serem atendidos por telefone, gerando insatisfação.
+          </p>
+        </div>
+
+        <div class="problem-card bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:scale-105 transition-transform animate-fade-in-up delay-300">
+          <div class="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mb-6">
+            <i class="fas fa-user-times text-2xl text-yellow-400"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-4">Sobrecarga da equipe</h3>
+          <p class="text-gray-400">
+            Funcionários gastam 40% do tempo apenas agendando e confirmando consultas manualmente.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution Section -->
+  <section class="solution py-24 relative z-10">
+    <div class="container mx-auto px-6">
+      <div class="grid md:grid-cols-2 gap-16 items-center">
+        <div class="animate-fade-in-right">
+          <span class="text-accent font-semibold mb-4 block">A SOLUÇÃO</span>
+          <h2 class="text-4xl md:text-5xl font-bold mb-8">
+            Agentes AI que <span class="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">trabalham por você</span>
+          </h2>
+
+          <div class="space-y-6">
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center shrink-0">
+                <i class="fas fa-calendar-check text-primary"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-lg mb-2">Agendamento Automático</h4>
+                <p class="text-gray-400">Marcação de consultas integrada com seus sistemas de clínica</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center shrink-0">
+                <i class="fas fa-comments text-accent"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-lg mb-2">Atendimento Natural</h4>
+                <p class="text-gray-400">Conversas humanizadas via WhatsApp, Instagram e site</p>
+              </div>
+            </div>
+
+            <div class="flex items-start gap-4">
+              <div class="w-12 h-12 bg-secondary/20 rounded-full flex items-center justify-center shrink-0">
+                <i class="fas fa-chart-line text-secondary"></i>
+              </div>
+              <div>
+                <h4 class="font-bold text-lg mb-2">Dashboard Completo</h4>
+                <p class="text-gray-400">Métricas em tempo real e relatórios de performance</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="relative animate-fade-in-left">
+          <div class="bg-gradient-to-br from-primary/10 to-accent/10 backdrop-blur-xl rounded-3xl p-8 border border-white/10 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary/30 to-transparent rounded-full blur-3xl"></div>
+
+            <!-- Chat Mockup -->
+            <div class="space-y-4 relative z-10">
+              <div class="bg-white/10 rounded-2xl rounded-tl-none p-4 max-w-xs animate-slide-in-left">
+                <p class="text-sm">Olá! Gostaria de marcar uma consulta.</p>
+              </div>
+
+              <div class="bg-gradient-to-r from-primary/20 to-accent/20 rounded-2xl rounded-tr-none p-4 max-w-xs ml-auto animate-slide-in-right delay-200">
+                <p class="text-sm">Claro! Para qual especialidade?</p>
+              </div>
+
+              <div class="bg-white/10 rounded-2xl rounded-tl-none p-4 max-w-xs animate-slide-in-left delay-400">
+                <p class="text-sm">Cardiologia, por favor.</p>
+              </div>
+            </div>
+
+            <div class="absolute bottom-8 right-8 flex gap-2">
+              <div class="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+              <div class="w-2 h-2 bg-accent rounded-full animate-bounce delay-100"></div>
+              <div class="w-2 h-2 bg-secondary rounded-full animate-bounce delay-200"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features py-24 relative z-10 bg-gradient-to-b from-transparent to-accent/5">
+    <div class="container mx-auto px-6">
+      <div class="text-center mb-16 animate-fade-in">
+        <span class="text-primary font-semibold mb-4 block">FUNCIONALIDADES</span>
+        <h2 class="text-4xl md:text-5xl font-bold mb-6">
+          Tudo que sua clínica precisa
+          <span class="bg-gradient-to-r from-accent to-secondary bg-clip-text text-transparent">em uma plataforma</span>
+        </h2>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Feature 1 -->
+        <div class="feature-card group bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary/50 transition-all animate-fade-in-up delay-100">
+          <div class="w-14 h-14 bg-gradient-to-r from-primary to-primary/60 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i class="fas fa-brain text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">IA Personalizada</h3>
+          <p class="text-gray-400 mb-4">
+            Treine o agente com informações específicas da sua clínica, horários e preços.
+          </p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><i class="fas fa-check text-primary mr-2"></i>Entende termos médicos</li>
+            <li><i class="fas fa-check text-primary mr-2"></i>Responde com precisão</li>
+            <li><i class="fas fa-check text-primary mr-2"></i>Aprende com interações</li>
+          </ul>
+        </div>
+
+        <!-- Feature 2 -->
+        <div class="feature-card group bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary/50 transition-all animate-fade-in-up delay-200">
+          <div class="w-14 h-14 bg-gradient-to-r from-accent to-accent/60 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i class="fas fa-mobile-alt text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Multi-canais</h3>
+          <p class="text-gray-400 mb-4">
+            Atenda em WhatsApp, Instagram, Facebook e site com uma única plataforma.
+          </p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><i class="fas fa-check text-accent mr-2"></i>WhatsApp API oficial</li>
+            <li><i class="fas fa-check text-accent mr-2"></i>Instagram DM automático</li>
+            <li><i class="fas fa-check text-accent mr-2"></i>Chat widget integrado</li>
+          </ul>
+        </div>
+
+        <!-- Feature 3 -->
+        <div class="feature-card group bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary/50 transition-all animate-fade-in-up delay-300">
+          <div class="w-14 h-14 bg-gradient-to-r from-secondary to-secondary/60 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i class="fas fa-calendar-alt text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Agendamento Inteligente</h3>
+          <p class="text-gray-400 mb-4">
+            Agenda automaticamente no seu sistema (SoftDoctor, Clinicorp, etc).
+          </p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><i class="fas fa-check text-secondary mr-2"></i>Integração nativa</li>
+            <li><i class="fas fa-check text-secondary mr-2"></i>Disponibilidade em tempo real</li>
+            <li><i class="fas fa-check text-secondary mr-2"></i>Confirmação automática</li>
+          </ul>
+        </div>
+
+        <!-- Feature 4 -->
+        <div class="feature-card group bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary/50 transition-all animate-fade-in-up delay-400">
+          <div class="w-14 h-14 bg-gradient-to-r from-purple-500 to-purple/60 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i class="fas fa-language text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Português Natural</h3>
+          <p class="text-gray-400 mb-4">
+            IA treinada especificamente para o português brasileiro e termos da saúde.
+          </p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><i class="fas fa-check text-purple-400 mr-2"></i>Variações regionais</li>
+            <li><i class="fas fa-check text-purple-400 mr-2"></i>Gírias médicas</li>
+            <li><i class="fas fa-check text-purple-400 mr-2"></i>Pronúncia natural</li>
+          </ul>
+        </div>
+
+        <!-- Feature 5 -->
+        <div class="feature-card group bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary/50 transition-all animate-fade-in-up delay-500">
+          <div class="w-14 h-14 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i class="fas fa-chart-bar text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Analytics Poderoso</h3>
+          <p class="text-gray-400 mb-4">
+            Acompanhe conversões, taxa de resposta e satisfação dos pacientes.
+          </p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><i class="fas fa-check text-green-400 mr-2"></i>Dashboard em tempo real</li>
+            <li><i class="fas fa-check text-green-400 mr-2"></i>Relatórios automáticos</li>
+            <li><i class="fas fa-check text-green-400 mr-2"></i>Métricas de performance</li>
+          </ul>
+        </div>
+
+        <!-- Feature 6 -->
+        <div class="feature-card group bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10 hover:border-primary/50 transition-all animate-fade-in-up delay-600">
+          <div class="w-14 h-14 bg-gradient-to-r from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+            <i class="fas fa-shield-alt text-2xl"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-3">Seguro e LGPD</h3>
+          <p class="text-gray-400 mb-4">
+            Seus dados e informações de pacientes protegidos com criptografia avançada.
+          </p>
+          <ul class="space-y-2 text-sm text-gray-300">
+            <li><i class="fas fa-check text-orange-400 mr-2"></i>Criptografia AES-256</li>
+            <li><i class="fas fa-check text-orange-400 mr-2"></i>Compliance LGPD</li>
+            <li><i class="fas fa-check text-orange-400 mr-2"></i>Backup automático</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chat Simulation Section -->
+  <section class="chat-demo py-24 relative z-10 bg-gradient-to-b from-accent/5 to-transparent">
+    <div class="container mx-auto px-6">
+      <div class="text-center mb-16 animate-fade-in">
+        <span class="text-accent font-semibold mb-4 block">DEMONSTRAÇÃO</span>
+        <h2 class="text-4xl md:text-5xl font-bold mb-6">
+          Veja o <span class="bg-gradient-to-r from-accent to-primary bg-clip-text text-transparent">CliniFlow</span> em ação
+        </h2>
+        <p class="text-xl text-gray-400 max-w-2xl mx-auto">
+         Uma conversa real entre um paciente e seu agente de IA. Note a naturalidade e agilidade.
+        </p>
+      </div>
+
+      <div class="max-w-4xl mx-auto">
+        <div class="bg-gradient-to-br from-dark-bg to-primary/5 backdrop-blur-xl rounded-3xl p-8 border border-white/10 animate-fade-in-up">
+          <!-- Chat Header -->
+          <div class="flex items-center gap-4 mb-8 pb-6 border-b border-white/10">
+            <div class="relative">
+              <div class="w-14 h-14 bg-gradient-to-r from-primary to-accent rounded-full flex items-center justify-center">
+                <i class="fas fa-robot text-2xl"></i>
+              </div>
+              <div class="absolute bottom-0 right-0 w-4 h-4 bg-green-400 rounded-full border-2 border-dark"></div>
+            </div>
+            <div>
+              <h4 class="font-bold text-lg">Agente CliniFlow</h4>
+              <p class="text-sm text-green-400">Online agora</p>
+            </div>
+            <div class="ml-auto flex items-center gap-3">
+              <span class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">IA Inteligente</span>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div class="space-y-6 mb-8 min-h-[400px]" id="chat-container">
+            <!-- Messages will be inserted by JavaScript -->
+          </div>
+
+          <!-- Typing Indicator -->
+          <div class="flex items-center gap-2 text-gray-400" id="typing-indicator" style="display: none;">
+            <div class="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
+            <div class="w-2 h-2 bg-accent rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+            <div class="w-2 h-2 bg-secondary rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+            <span class="ml-2 text-sm">Digitando...</span>
+          </div>
+        </div>
+
+        <div class="text-center mt-8 animate-fade-in-up">
+          <button id="restart-chat" class="px-6 py-3 bg-white/10 rounded-full hover:bg-white/20 transition-all border border-white/20">
+            <i class="fas fa-redo mr-2"></i>Ver conversa novamente
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Form Section (Lead Capture) -->
+  <section class="form-section py-24 relative z-10" id="form-section">
+    <div class="container mx-auto px-6">
+      <div class="max-w-3xl mx-auto">
+        <div class="text-center mb-12 animate-fade-in">
+          <span class="text-primary font-semibold mb-4 block">QUERO AUTOMATIZAR MINHA CLÍNICA</span>
+          <h2 class="text-4xl md:text-5xl font-bold mb-6">
+            Pronto para escalar seu
+            <span class="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">atendimento?</span>
+          </h2>
+          <p class="text-xl text-gray-400">
+            Preencha o formulário abaixo e agende uma demonstração personalizada.
+          </p>
+        </div>
+
+        <div class="bg-gradient-to-br from-dark-bg to-primary/5 backdrop-blur-xl rounded-3xl p-8 md:p-12 border border-white/10 animate-fade-in-up">
+          <form id="lead-form" class="space-y-6">
+            <!-- Step 1 -->
+            <div class="form-step" data-step="1">
+              <div class="mb-8">
+                <label class="block text-lg font-semibold mb-2">Qual é o tipo da sua clínica? *</label>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="clinic_type" value="medica" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fas fa-stethoscope text-2xl mb-2 text-primary"></i>
+                      <div class="text-sm">Médica</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="clinic_type" value="odontologica" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fas fa-tooth text-2xl mb-2 text-accent"></i>
+                      <div class="text-sm">Odontológica</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="clinic_type" value="veterinaria" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fas fa-paw text-2xl mb-2 text-secondary"></i>
+                      <div class="text-sm">Veterinária</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="clinic_type" value="estetica" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fas fa-spa text-2xl mb-2 text-purple-400"></i>
+                      <div class="text-sm">Estética</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="form-step hidden" data-step="2">
+              <div class="mb-8">
+                <label class="block text-lg font-semibold mb-4">Quantos pacientes sua clínica atende por mês? *</label>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="patients_count" value="menos-500" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-6 text-center hover:border-primary transition-all">
+                      <div class="text-2xl font-bold text-primary mb-2">&lt;500</div>
+                      <div class="text-sm text-gray-400">Pacientes/mês</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="patients_count" value="500-2000" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-6 text-center hover:border-primary transition-all">
+                      <div class="text-2xl font-bold text-accent mb-2">500-2.000</div>
+                      <div class="text-sm text-gray-400">Pacientes/mês</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="patients_count" value="mais-2000" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-6 text-center hover:border-primary transition-all">
+                      <div class="text-2xl font-bold text-secondary mb-2">&gt;2.000</div>
+                      <div class="text-sm text-gray-400">Pacientes/mês</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="form-step hidden" data-step="3">
+              <div class="mb-8">
+                <label class="block text-lg font-semibold mb-4">
+                  Qual seu maior desafio no atendimento? (selecione todos)
+                </label>
+                <div class="space-y-3">
+                  <label class="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-primary/50 cursor-pointer transition-all">
+                    <input type="checkbox" name="challenges" value="ligacoes-perdidas" class="w-5 h-5 rounded">
+                    <span>Ligações fora do horário não são atendidas</span>
+                  </label>
+                  <label class="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-primary/50 cursor-pointer transition-all">
+                    <input type="checkbox" name="challenges" value="tempo-espera" class="w-5 h-5 rounded">
+                    <span>Pacientes esperam muito tempo no telefone</span>
+                  </label>
+                  <label class="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-primary/50 cursor-pointer transition-all">
+                    <input type="checkbox" name="challenges" value="agendamento" class="w-5 h-5 rounded">
+                    <span>Dificuldade em organizar agendamentos</span>
+                  </label>
+                  <label class="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-primary/50 cursor-pointer transition-all">
+                    <input type="checkbox" name="challenges" value="cancelacoes" class="w-5 h-5 rounded">
+                    <span>Alta taxa de cancelamentos</span>
+                  </label>
+                  <label class="flex items-center gap-3 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-primary/50 cursor-pointer transition-all">
+                    <input type="checkbox" name="challenges" value="equipe" class="w-5 h-5 rounded">
+                    <span>Equipe sobrecarregada com tarefas repetitivas</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="form-step hidden" data-step="4">
+              <div class="mb-8">
+                <label class="block text-lg font-semibold mb-2">
+                  Você já utiliza algum sistema de automação? *
+                </label>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="current_tool" value="whatsapp-business" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fab fa-whatsapp text-2xl mb-2 text-green-400"></i>
+                      <div class="text-sm">WhatsApp Business</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="current_tool" value="google" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fab fa-google text-2xl mb-2 text-blue-400"></i>
+                      <div class class="text-sm">Google Meu Negócio</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="current_tool" value="sistema-interno" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fas fa-desktop text-2xl mb-2 text-accent"></i>
+                      <div class="text-sm">Sistema interno</div>
+                    </div>
+                  </label>
+                  <label class="option-card cursor-pointer">
+                    <input type="radio" name="current_tool" value="nenhum" class="hidden">
+                    <div class="bg-white/5 border-2 border-white/10 rounded-xl p-4 text-center hover:border-primary transition-all">
+                      <i class="fas fa-times-circle text-2xl mb-2 text-gray-400"></i>
+                      <div class="text-sm">Nenhum</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="form-step hidden" data-step="5">
+              <div class="mb-8">
+                <label class="block text-lg font-semibold mb-2">
+                  Qual o melhor horário para uma demonstração? *
+                </label>
+                <input type="text" id="datetime-input" class="form-input bg-white/5 border border-white/20 rounded-xl px-6 py-4 w-full focus:border-primary focus:ring-2 focus:ring-primary/30 outline-none" placeholder="Escolha um dia e horário">
+                <p class="text-sm text-gray-400 mt-2">
+                  <i class="far fa-clock mr-1"></i>Demonstração dura cerca de 15 minutos
+                </p>
+              </div>
+
+              <div class="mb-8">
+                <label class="block text-lg font-semibold mb-2">
+                  Deixe um recado para nossa equipe (opcional)
+                </label>
+                <textarea name="message" rows="4" class="form-input bg-white/5 border border-white/20 rounded-xl px-6 py-4 w-full focus:border-primary focus:ring-2 focus:ring-primary/30 outline-none" placeholder="Alguma dúvida ou informação importante?"></textarea>
+              </div>
+            </div>
+
+            <!-- Progress & Navigation -->
+            <div class="mt-8">
+              <!-- Progress Bar -->
+              <div class="mb-6">
+                <div class="flex justify-between text-sm text-gray-400 mb-2">
+                  <span>Progresso</span>
+                  <span id="progress-text">1 de 5</span>
+                </div>
+                <div class="w-full bg-white/10 rounded-full h-2">
+                  <div id="progress-bar" class="bg-gradient-to-r from-primary to-accent h-2 rounded-full transition-all duration-300" style="width: 20%"></div>
+                </div>
+              </div>
+
+              <!-- Navigation Buttons -->
+              <div class="flex justify-between gap-4">
+                <button type="button" id="prev-btn" class="px-8 py-4 bg-white/10 rounded-full font-semibold hover:bg-white/20 transition-all border border-white/20 hidden">
+                  <i class="fas fa-arrow-left mr-2"></i>Anterior
+                </button>
+                <button type="button" id="next-btn" class="ml-auto px-8 py-4 bg-gradient-to-r from-primary to-accent rounded-full font-bold hover:scale-105 transition-all shadow-lg shadow-primary/30">
+                  Próximo<i class="fas fa-arrow-right ml-2"></i>
+                </button>
+                <button type="submit" id="submit-btn" class="ml-auto px-8 py-4 bg-gradient-to-r from-green-500 to-green-600 rounded-full font-bold hover:scale-105 transition-all shadow-lg hidden">
+                  <i class="fas fa-check mr-2"></i>Agendar Demonstração
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer py-12 border-t border-white/10 relative z-10 bg-dark-bg/80">
+    <div class="container mx-auto px-6">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="text-center md:text-left">
+          <div class="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent mb-2">
+            <i class="fas fa-robot mr-2"></i>CliniFlow
+          </div>
+          <p class="text-gray-400 text-sm">
+            © 2025 CliniFlow. Todos os direitos reservados.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-6">
+          <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+            <i class="fab fa-instagram text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+            <i class="fab fa-linkedin text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+            <i class="fab fa-facebook text-xl"></i>
+          </a>
+          <a href="#" class="text-gray-400 hover:text-primary transition-colors">
+            <i class="fab fa-youtube text-xl"></i>
+          </a>
+        </div>
+      </div>
+
+      <div class="mt-8 pt-8 border-t border-white/10 text-center text-sm text-gray-500">
+        <p>
+          <i class="fas fa-lock mr-1"></i>
+          Seus dados estão seguros. Utilizamos criptografia de ponta e seguimos a LGPD.
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300">
+    <div class="bg-gradient-to-br from-dark-bg to-primary/10 backdrop-blur-xl rounded-3xl p-12 max-w-md mx-auto border border-white/20 transform scale-95 transition-transform duration-300">
+      <div class="text-center">
+        <div class="w-20 h-20 bg-gradient-to-r from-green-400 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+          <i class="fas fa-check text-4xl text-white"></i>
+        </div>
+        <h3 class="text-2xl font-bold mb-4">Pré-cadastro recebido!</h3>
+        <p class="text-gray-300 mb-8">
+          Entraremos em contato em até 24 horas para agendar sua demonstração personalizada.
+        </p>
+        <button id="close-modal" class="px-8 py-4 bg-gradient-to-r from-primary to-accent rounded-full font-bold hover:scale-105 transition-all">
+          Entendi!
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="landing.js"></script>
+</body>
+</html>

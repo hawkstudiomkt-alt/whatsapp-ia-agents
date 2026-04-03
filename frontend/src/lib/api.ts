@@ -86,9 +86,29 @@ export interface AnalyticsSummary {
   messagesReceived: number;
   activeConversations: number;
   totalConversations: number;
+  totalLeads: number;
   leadsQualified: number;
   leadsConverted: number;
+  leadsNew: number;
+  leadsDisqualified: number;
+  leadsToday: number;
   conversionRate: number;
+  timeSavedHours: number;
+  automationRate: number;
+}
+
+export interface FunnelStep {
+  step: string;
+  count: number;
+  percentage: number;
+}
+
+export interface LeadBreakdown {
+  new: number;
+  qualified: number;
+  disqualified: number;
+  converted: number;
+  total: number;
 }
 
 export interface DailyAnalytics {
@@ -127,6 +147,10 @@ export const agentsApi = {
     api.post<Agent>('/agents', data).then(r => r.data),
   update: (id: string, data: Partial<Agent>) =>
     api.put<Agent>(`/agents/${id}`, data).then(r => r.data),
+  toggleStatus: (id: string, current: string) => {
+    const next = current === 'ACTIVE' ? 'PAUSED' : 'ACTIVE';
+    return api.put<Agent>(`/agents/${id}`, { status: next }).then(r => r.data);
+  },
   delete: (id: string) => api.delete(`/agents/${id}`),
 };
 
@@ -161,6 +185,10 @@ export const analyticsApi = {
   getDaily: (instanceId?: string, days?: number) =>
     api.get<DailyAnalytics[]>(`/analytics/daily?instanceId=${instanceId || ''}&days=${days || 7}`).then(r => r.data),
   getDashboard: () => api.get('/analytics/dashboard').then(r => r.data),
+  getFunnel: (instanceId?: string) =>
+    api.get<FunnelStep[]>('/analytics/funnel' + (instanceId ? `?instanceId=${instanceId}` : '')).then(r => r.data),
+  getLeadBreakdown: (instanceId?: string) =>
+    api.get<LeadBreakdown>('/analytics/leads/breakdown' + (instanceId ? `?instanceId=${instanceId}` : '')).then(r => r.data),
 };
 
 export const followupsApi = {
