@@ -1,7 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-900 text-gray-100;
+/* ── Rattix Design Tokens ─────────────────────────────────────────────── */
+:root {
+  --lime:     #B6FF00;
+  --purple:   #7D53FF;
+  --rblack:   #060606;
+  --rcard:    #0e0e0e;
+  --rcard2:   #141414;
+  --rborder:  rgba(255, 255, 255, 0.06);
+  --rmuted:   #555555;
+  --rtext:    #f0f0f0;
 }
+
+/* ── Base ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 16px; }
+
+body {
+  font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  background-color: var(--rblack);
+  color: var(--rtext);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Grid background (cyber aesthetic) ────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(182, 255, 0, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(182, 255, 0, 0.025) 1px, transparent 1px);
+  background-size: 44px 44px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Custom Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #333; }
+
+/* ── Mono utility ─────────────────────────────────────────────────────── */
+.font-mono-rattix { font-family: 'Space Mono', monospace; }
+
+/* ── Glow utilities ───────────────────────────────────────────────────── */
+.glow-lime   { text-shadow: 0 0 20px rgba(182, 255, 0, 0.5); }
+.glow-purple { text-shadow: 0 0 20px rgba(125, 83, 255, 0.5); }
+
+.shadow-lime   { box-shadow: 0 0 20px rgba(182, 255, 0, 0.25); }
+.shadow-purple { box-shadow: 0 0 20px rgba(125, 83, 255, 0.25); }
+
+/* ── Pulse dot ────────────────────────────────────────────────────────── */
+@keyframes rattix-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.pulse-dot { animation: rattix-pulse 2s infinite; }
+
+/* ── Select override ──────────────────────────────────────────────────── */
+select option { background: #141414; color: #f0f0f0; }

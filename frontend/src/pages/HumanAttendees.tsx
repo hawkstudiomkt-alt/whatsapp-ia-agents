@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
-import { Users, Plus, UserCheck, UserX, Clock, CheckCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Users, Plus, UserCheck, Clock, CheckCircle, X, Phone, Mail } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, Button, Badge, LoadingSpinner } from '../components/ui';
 
 interface HumanAttendee {
@@ -18,21 +18,26 @@ interface Assignment {
   id: string;
   status: string;
   createdAt: string;
-  conversation?: {
-    phone: string;
-    lead?: { name?: string };
-  };
-  lead?: {
-    name?: string;
-    phone: string;
-  };
+  conversation?: { phone: string; lead?: { name?: string } };
+  lead?: { name?: string; phone: string };
 }
+
+const STATUS_CONFIG = {
+  AVAILABLE: { label: 'Disponível', variant: 'success'  as const, dot: '#B6FF00' },
+  BUSY:      { label: 'Ocupado',    variant: 'warning'  as const, dot: '#f59e0b' },
+  OFFLINE:   { label: 'Offline',    variant: 'neutral'  as const, dot: '#555'    },
+};
+
+const inputCls = `
+  w-full bg-[#060606] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-2.5 text-sm text-[#f0f0f0]
+  outline-none focus:border-[rgba(182,255,0,0.4)] transition-colors font-[Space_Grotesk,sans-serif]
+`;
 
 export default function HumanAttendees() {
   const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm]                 = useState(false);
   const [selectedAttendee, setSelectedAttendee] = useState<HumanAttendee | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '' });
+  const [formData, setFormData]                 = useState({ name: '', email: '', phone: '' });
 
   const { data: attendees, isLoading } = useQuery({
     queryKey: ['human-attendees'],
@@ -40,8 +45,7 @@ export default function HumanAttendees() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: typeof formData) =>
-      api.post('/human-attendees', data).then(r => r.data),
+    mutationFn: (data: typeof formData) => api.post('/human-attendees', data).then(r => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['human-attendees'] });
       setShowForm(false);
@@ -52,9 +56,7 @@ export default function HumanAttendees() {
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/human-attendees/${id}/status`, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['human-attendees'] });
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['human-attendees'] }),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -62,213 +64,268 @@ export default function HumanAttendees() {
     createMutation.mutate(formData);
   };
 
-  const getStatusBadge = (status: string) => {
-    const config = {
-      AVAILABLE: { color: 'success' as const, label: 'Disponível' },
-      BUSY: { color: 'warning' as const, label: 'Ocupado' },
-      OFFLINE: { color: 'neutral' as const, label: 'Offline' },
-    };
-    const configStatus = config[status as keyof typeof config];
-    return <Badge variant={configStatus?.color}>{configStatus?.label}</Badge>;
-  };
+  const available = attendees?.filter(a => a.status === 'AVAILABLE').length || 0;
+  const busy      = attendees?.filter(a => a.status === 'BUSY').length      || 0;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
-    >
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">Atendentes Humanos</h1>
-          <p className="text-gray-400 mt-1">Gerencie sua equipe de atendimento</p>
+          <h1
+            className="text-3xl font-bold"
+            style={{ color: '#f0f0f0', fontFamily: 'Space Grotesk, sans-serif' }}
+          >
+            Atendentes
+          </h1>
+          <p className="text-sm mt-1 font-mono-rattix" style={{ color: '#555' }}>
+            {available} disponíveis · {busy} ocupados
+          </p>
         </div>
         <Button onClick={() => setShowForm(true)}>
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Novo Atendente
         </Button>
       </div>
 
-      {showForm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
-        >
-          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-xl font-bold text-white mb-4">Novo Atendente</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Nome</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-green-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-green-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Telefone</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-green-500"
-                  required
-                />
-              </div>
-              <div className="flex gap-2 pt-4">
-                <Button type="button" variant="secondary" onClick={() => setShowForm(false)} className="flex-1">
-                  Cancelar
-                </Button>
-                <Button type="submit" disabled={createMutation.isPending} className="flex-1">
-                  {createMutation.isPending ? <LoadingSpinner /> : 'Salvar'}
-                </Button>
-              </div>
-            </form>
+      {/* Grid */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-20">
+          <LoadingSpinner />
+        </div>
+      ) : !attendees?.length ? (
+        <Card className="p-16 flex flex-col items-center gap-4">
+          <div
+            className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            style={{ background: 'rgba(182,255,0,0.06)', border: '1px solid rgba(182,255,0,0.1)' }}
+          >
+            <Users className="w-7 h-7" style={{ color: '#B6FF00' }} />
           </div>
-        </motion.div>
-      )}
+          <p className="text-sm font-mono-rattix" style={{ color: '#444' }}>
+            Nenhum atendente cadastrado
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-3 gap-4">
+          {attendees.map((attendee, index) => {
+            const conf = STATUS_CONFIG[attendee.status] || STATUS_CONFIG.OFFLINE;
+            const initials = attendee.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
-      <div className="grid grid-cols-3 gap-4">
-        {isLoading ? (
-          <div className="flex justify-center py-12 col-span-3">
-            <LoadingSpinner />
-          </div>
-        ) : (
-          attendees?.map((attendee, index) => (
-            <motion.div
-              key={attendee.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center">
-                      <Users className="w-6 h-6 text-green-400" />
+            return (
+              <motion.div
+                key={attendee.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.07 }}
+              >
+                <Card className="p-5">
+                  {/* Top */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="relative w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+                        style={{ background: 'linear-gradient(135deg, rgba(125,83,255,0.25), rgba(182,255,0,0.1))', color: '#f0f0f0', border: '1px solid rgba(255,255,255,0.08)' }}
+                      >
+                        {initials}
+                        <span
+                          className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2"
+                          style={{ background: conf.dot, borderColor: '#0e0e0e', boxShadow: `0 0 6px ${conf.dot}` }}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-sm truncate" style={{ color: '#f0f0f0' }}>{attendee.name}</p>
+                        <p className="text-xs truncate" style={{ color: '#555' }}>{attendee.email}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">{attendee.name}</h3>
-                      <p className="text-gray-400 text-sm">{attendee.email}</p>
-                    </div>
+                    <Badge variant={conf.variant}>{conf.label}</Badge>
                   </div>
-                  {getStatusBadge(attendee.status)}
-                </div>
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Users className="w-4 h-4" />
-                    <span>{attendee._count?.assignments || 0} conversas ativas</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => setSelectedAttendee(attendee)}
+                  {/* Stats */}
+                  <div
+                    className="flex items-center gap-3 mb-4 px-3 py-2 rounded-xl text-xs"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}
                   >
-                    <UserCheck className="w-4 h-4" />
-                    Ver
-                  </Button>
-                  {attendee.status === 'AVAILABLE' ? (
+                    <Phone className="w-3.5 h-3.5 shrink-0" style={{ color: '#555' }} />
+                    <span className="font-mono-rattix" style={{ color: '#888' }}>{attendee.phone}</span>
+                    <span className="ml-auto font-mono-rattix" style={{ color: '#555' }}>
+                      {attendee._count?.assignments || 0} atrib.
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => updateStatusMutation.mutate({ id: attendee.id, status: 'BUSY' })}
+                      className="flex-1"
+                      onClick={() => setSelectedAttendee(attendee)}
                     >
-                      <Clock className="w-4 h-4" />
-                      Ocupado
+                      <UserCheck className="w-3.5 h-3.5" />
+                      Ver
                     </Button>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={() => updateStatusMutation.mutate({ id: attendee.id, status: 'AVAILABLE' })}
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      Liberar
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            </motion.div>
-          ))
-        )}
-      </div>
-
-      {/* Modal de Designações */}
-      {selectedAttendee && (
-        <AssignmentsModal
-          attendee={selectedAttendee}
-          onClose={() => setSelectedAttendee(null)}
-        />
+                    {attendee.status === 'AVAILABLE' ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ id: attendee.id, status: 'BUSY' })}
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => updateStatusMutation.mutate({ id: attendee.id, status: 'AVAILABLE' })}
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
       )}
-    </motion.div>
+
+      {/* Create Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 flex items-center justify-center z-50 p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+            onClick={e => e.target === e.currentTarget && setShowForm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-6"
+              style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg font-bold" style={{ color: '#f0f0f0' }}>Novo Atendente</h2>
+                <button onClick={() => setShowForm(false)} style={{ color: '#555' }}>
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {[
+                  { label: 'Nome', type: 'text', key: 'name', placeholder: 'João Silva' },
+                  { label: 'E-mail', type: 'email', key: 'email', placeholder: 'joao@empresa.com' },
+                  { label: 'Telefone', type: 'tel', key: 'phone', placeholder: '5511999999999' },
+                ].map(field => (
+                  <div key={field.key}>
+                    <label
+                      className="block text-xs mb-1.5 font-mono-rattix"
+                      style={{ color: '#555', textTransform: 'uppercase', letterSpacing: '1px' }}
+                    >
+                      {field.label}
+                    </label>
+                    <input
+                      type={field.type}
+                      value={formData[field.key as keyof typeof formData]}
+                      onChange={e => setFormData({ ...formData, [field.key]: e.target.value })}
+                      placeholder={field.placeholder}
+                      required
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-2">
+                  <Button type="button" variant="secondary" onClick={() => setShowForm(false)} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createMutation.isPending} className="flex-1">
+                    {createMutation.isPending ? <LoadingSpinner /> : 'Criar'}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Assignments Modal */}
+      <AnimatePresence>
+        {selectedAttendee && (
+          <AssignmentsModal
+            attendee={selectedAttendee}
+            onClose={() => setSelectedAttendee(null)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 
 function AssignmentsModal({ attendee, onClose }: { attendee: HumanAttendee; onClose: () => void }) {
-  const { data: assignments } = useQuery({
+  const { data: assignments, isLoading } = useQuery({
     queryKey: ['human-attendees', attendee.id, 'assignments'],
-    queryFn: () =>
-      api.get<Assignment[]>(`/human-attendees/${attendee.id}/assignments`).then(r => r.data),
+    queryFn: () => api.get<Assignment[]>(`/human-attendees/${attendee.id}/assignments`).then(r => r.data),
   });
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 flex items-center justify-center z-50 p-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-2xl border border-gray-700 max-h-[80vh] overflow-y-auto">
-        <h2 className="text-xl font-bold text-white mb-4">
-          Designações de {attendee.name}
-        </h2>
-        <div className="space-y-3">
-          {assignments?.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">Nenhuma designação</p>
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="w-full max-w-xl rounded-2xl p-6 max-h-[80vh] flex flex-col"
+        style={{ background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.08)' }}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold" style={{ color: '#f0f0f0' }}>Designações</h2>
+            <p className="text-xs font-mono-rattix mt-0.5" style={{ color: '#555' }}>{attendee.name}</p>
+          </div>
+          <button onClick={onClose} style={{ color: '#555' }}><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto space-y-2">
+          {isLoading ? (
+            <div className="flex justify-center py-8"><LoadingSpinner /></div>
+          ) : !assignments?.length ? (
+            <p className="text-center py-8 text-sm font-mono-rattix" style={{ color: '#444' }}>
+              Nenhuma designação
+            </p>
           ) : (
-            assignments?.map((assignment) => (
+            assignments.map(a => (
               <div
-                key={assignment.id}
-                className="p-4 bg-gray-700/30 rounded-xl border border-gray-700"
+                key={a.id}
+                className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white font-medium">
-                      {assignment.lead?.name || assignment.conversation?.lead?.name || assignment.lead?.phone || assignment.conversation?.phone}
-                    </p>
-                    <p className="text-gray-400 text-sm">
-                      {new Date(assignment.createdAt).toLocaleString('pt-BR')}
-                    </p>
-                  </div>
-                  <Badge variant={assignment.status === 'COMPLETED' ? 'success' : 'warning'}>
-                    {assignment.status}
-                  </Badge>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#f0f0f0' }}>
+                    {a.lead?.name || a.conversation?.lead?.name || a.lead?.phone || a.conversation?.phone || 'Lead'}
+                  </p>
+                  <p className="text-xs font-mono-rattix" style={{ color: '#555' }}>
+                    {new Date(a.createdAt).toLocaleString('pt-BR')}
+                  </p>
                 </div>
+                <Badge variant={a.status === 'COMPLETED' ? 'success' : 'warning'}>
+                  {a.status}
+                </Badge>
               </div>
             ))
           )}
         </div>
+
         <Button variant="secondary" onClick={onClose} className="w-full mt-4">
           Fechar
         </Button>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
