@@ -24,6 +24,8 @@ export default function Instances() {
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null);
   const [qrCodeData, setQrCodeData]           = useState<{ base64: string; instanceId: string } | null>(null);
   const [qrCountdown, setQrCountdown]         = useState(20);
+  const [adminPhoneEdit, setAdminPhoneEdit]   = useState('');
+  const [savingAdminPhone, setSavingAdminPhone] = useState(false);
 
   const { data: instances, isLoading } = useQuery({
     queryKey: ['instances'],
@@ -47,6 +49,32 @@ export default function Instances() {
     mutationFn: instancesApi.delete,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['instances'] }),
   });
+
+  const updateInstanceMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<Instance> }) => instancesApi.update(id, data),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ['instances'] });
+      setSelectedInstance(updated);
+    },
+  });
+
+  const handleOpenInstance = (instance: Instance) => {
+    setSelectedInstance(instance);
+    setAdminPhoneEdit(instance.adminPhone || '');
+  };
+
+  const handleSaveAdminPhone = async () => {
+    if (!selectedInstance) return;
+    setSavingAdminPhone(true);
+    try {
+      await updateInstanceMutation.mutateAsync({
+        id: selectedInstance.id,
+        data: { adminPhone: adminPhoneEdit || null },
+      });
+    } finally {
+      setSavingAdminPhone(false);
+    }
+  };
 
   const generateQRMutation = useMutation({
     mutationFn: instancesApi.generateQR,
@@ -209,7 +237,7 @@ export default function Instances() {
                       variant="secondary"
                       size="sm"
                       className="flex-1"
-                      onClick={() => setSelectedInstance(instance)}
+                      onClick={() => handleOpenInstance(instance)}
                     >
                       <Eye className="w-3.5 h-3.5" />
                       Ver
@@ -404,6 +432,52 @@ export default function Instances() {
                     <p className="text-sm font-mono-rattix" style={{ color: '#444' }}>Sem agentes vinculados</p>
                   )}
                 </div>
+              </div>
+
+              {/* Notificações Admin */}
+              <div className="mt-4 rounded-xl p-4" style={{ background: 'rgba(182,255,0,0.03)', border: '1px solid rgba(182,255,0,0.1)' }}>
+                <div className="flex items-center gap-2 mb-3">
+                  <span style={{ fontSize: 14 }}>🔔</span>
+                  <p className="text-xs font-mono-rattix" style={{ color: '#B6FF00', textTransform: 'uppercase', letterSpacing: '1px' }}>Notificações Admin</p>
+                </div>
+                <p className="text-xs mb-3" style={{ color: '#555' }}>
+                  Quando o agente precisar de um humano, a notificação é enviada para este número via WhatsApp desta instância.
+                  Deixe vazio para desativar alertas.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="5511999999999 (com DDI)"
+                    value={adminPhoneEdit}
+                    onChange={e => setAdminPhoneEdit(e.target.value)}
+                    className={inputCls}
+                    style={{ flex: 1, fontSize: 13 }}
+                  />
+                  <button
+                    onClick={handleSaveAdminPhone}
+                    disabled={savingAdminPhone}
+                    style={{
+                      background: '#B6FF00',
+                      color: '#000',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      padding: '0 16px',
+                      borderRadius: 10,
+                      border: 'none',
+                      cursor: savingAdminPhone ? 'not-allowed' : 'pointer',
+                      opacity: savingAdminPhone ? 0.6 : 1,
+                      whiteSpace: 'nowrap',
+                      fontFamily: 'Space Mono, monospace',
+                    }}
+                  >
+                    {savingAdminPhone ? '...' : 'Salvar'}
+                  </button>
+                </div>
+                {selectedInstance?.adminPhone && (
+                  <p className="text-xs mt-2" style={{ color: '#B6FF00' }}>
+                    ✓ Alertas ativos → {selectedInstance.adminPhone}
+                  </p>
+                )}
               </div>
 
               <Button variant="secondary" className="w-full mt-6" onClick={() => setSelectedInstance(null)}>

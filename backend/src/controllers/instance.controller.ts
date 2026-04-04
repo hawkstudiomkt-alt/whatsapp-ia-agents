@@ -13,6 +13,8 @@ const updateInstanceSchema = z.object({
   name: z.string().min(1).optional(),
   status: z.enum(['CONNECTED', 'DISCONNECTED', 'PENDING']).optional(),
   webhookUrl: z.string().url().optional(),
+  adminPhone: z.string().optional().nullable(),
+  supportPhone: z.string().optional().nullable(),
 });
 
 export const instanceController = {

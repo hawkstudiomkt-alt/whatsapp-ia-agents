@@ -167,6 +167,10 @@ model Lead {
   notes        String?    @db.Text
   tags         String[]   @default([])
 
+  // Escalada para atendimento humano
+  needsHuman       Boolean   @default(false)
+  humanRequestedAt DateTime?
+
   // Designação para atendente humano
   assignedToHuman Boolean  @default(false)
   humanAttendeeId String?

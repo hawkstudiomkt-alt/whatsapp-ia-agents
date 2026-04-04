@@ -12,6 +12,7 @@ const updateLeadSchema = z.object({
   tags: z.array(z.string()).optional(),
   agentId: z.string().uuid().optional().nullable(),
   assignedToHuman: z.boolean().optional(),
+  needsHuman: z.boolean().optional(),
 });
 
 const createLeadSchema = z.object({
@@ -174,6 +175,30 @@ export const leadController = {
     } catch (error) {
       console.error('[lead/ai-update] Erro:', error);
       return reply.status(500).send({ error: 'Erro ao atualizar lead via IA' });
+    }
+  },
+
+  /**
+   * Marca o lead como precisando de atendimento humano (chamado pelo n8n quando agente detecta [[PRECISA_HUMANO]])
+   */
+  async handoff(request: FastifyRequest, reply: FastifyReply) {
+    const { id } = request.params as { id: string };
+    const { reason } = (request.body || {}) as { reason?: string };
+
+    try {
+      const lead = await leadService.findById(id);
+      if (!lead) return reply.status(404).send({ error: 'Lead não encontrado' });
+
+      const updated = await leadService.update(id, {
+        needsHuman: true,
+        humanRequestedAt: new Date(),
+        assignedToHuman: true,
+      } as any);
+
+      return reply.send({ success: true, lead: updated, reason });
+    } catch (error) {
+      console.error('[lead/handoff] Erro:', error);
+      return reply.status(500).send({ error: 'Erro ao registrar handoff' });
     }
   },
 };

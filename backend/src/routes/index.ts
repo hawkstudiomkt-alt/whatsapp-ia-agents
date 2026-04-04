@@ -53,6 +53,7 @@ export async function routes(app: FastifyInstance) {
     app.patch('/leads/:id/status', leadController.updateStatus.bind(leadController));
     app.patch('/leads/:id/ai-update', leadController.aiUpdate.bind(leadController));
     app.post('/leads/:id/toggle-human', leadController.toggleHuman.bind(leadController));
+    app.post('/leads/:id/handoff', leadController.handoff.bind(leadController)); // chamado pelo n8n
 
     // Analytics
     app.get('/analytics/summary', analyticsController.getSummary.bind(analyticsController));
