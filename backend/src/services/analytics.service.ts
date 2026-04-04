@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { AnalyticsSummary, DailyAnalytics } from '../types';
-import { ConversationStatus, LeadStatus, MessageDirection } from '@prisma/client';
+import { ConversationStatus, LeadStatus, MessageDirection, Prisma } from '@prisma/client';
 import { agentService } from './agent.service';
 
 export const analyticsService = {
@@ -71,44 +71,52 @@ export const analyticsService = {
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
+    const instanceFilter = instanceId ? Prisma.sql`AND "instanceId" = ${instanceId}` : Prisma.empty;
+
     // Busca dados reais de mensagens agrupados por dia
-    const messagesByDay = await prisma.$queryRaw<Array<{ day: Date; sent: bigint; received: bigint }>>`
-      SELECT
-        DATE_TRUNC('day', timestamp) as day,
-        COUNT(CASE WHEN direction = 'OUTBOUND' THEN 1 END) as sent,
-        COUNT(CASE WHEN direction = 'INBOUND' THEN 1 END) as received
-      FROM "messages"
-      WHERE timestamp >= ${startDate}
-      ${instanceId ? prisma.$queryRaw`AND "instanceId" = ${instanceId}` : prisma.$queryRaw``}
-      GROUP BY DATE_TRUNC('day', timestamp)
-      ORDER BY day ASC
-    `;
+    const messagesByDay = await prisma.$queryRaw<Array<{ day: Date; sent: bigint; received: bigint }>>(
+      Prisma.sql`
+        SELECT
+          DATE_TRUNC('day', timestamp) as day,
+          COUNT(CASE WHEN direction = 'OUTBOUND' THEN 1 END) as sent,
+          COUNT(CASE WHEN direction = 'INBOUND' THEN 1 END) as received
+        FROM "messages"
+        WHERE timestamp >= ${startDate}
+        ${instanceFilter}
+        GROUP BY DATE_TRUNC('day', timestamp)
+        ORDER BY day ASC
+      `
+    );
 
     // Busca leads criados por dia
-    const leadsByDay = await prisma.$queryRaw<Array<{ day: Date; total: bigint }>>`
-      SELECT
-        DATE_TRUNC('day', "createdAt") as day,
-        COUNT(*) as total
-      FROM "leads"
-      WHERE "createdAt" >= ${startDate}
-      ${instanceId ? prisma.$queryRaw`AND "instanceId" = ${instanceId}` : prisma.$queryRaw``}
-      GROUP BY DATE_TRUNC('day', "createdAt")
-      ORDER BY day ASC
-    `;
+    const leadsByDay = await prisma.$queryRaw<Array<{ day: Date; total: bigint }>>(
+      Prisma.sql`
+        SELECT
+          DATE_TRUNC('day', "createdAt") as day,
+          COUNT(*) as total
+        FROM "leads"
+        WHERE "createdAt" >= ${startDate}
+        ${instanceFilter}
+        GROUP BY DATE_TRUNC('day', "createdAt")
+        ORDER BY day ASC
+      `
+    );
 
     // Busca leads qualificados/convertidos por dia
-    const qualifiedByDay = await prisma.$queryRaw<Array<{ day: Date; qualified: bigint; converted: bigint }>>`
-      SELECT
-        DATE_TRUNC('day', "updatedAt") as day,
-        COUNT(CASE WHEN status = 'QUALIFIED' THEN 1 END) as qualified,
-        COUNT(CASE WHEN status = 'CONVERTED' THEN 1 END) as converted
-      FROM "leads"
-      WHERE "updatedAt" >= ${startDate}
-      AND status IN ('QUALIFIED', 'CONVERTED')
-      ${instanceId ? prisma.$queryRaw`AND "instanceId" = ${instanceId}` : prisma.$queryRaw``}
-      GROUP BY DATE_TRUNC('day', "updatedAt")
-      ORDER BY day ASC
-    `;
+    const qualifiedByDay = await prisma.$queryRaw<Array<{ day: Date; qualified: bigint; converted: bigint }>>(
+      Prisma.sql`
+        SELECT
+          DATE_TRUNC('day', "updatedAt") as day,
+          COUNT(CASE WHEN status = 'QUALIFIED' THEN 1 END) as qualified,
+          COUNT(CASE WHEN status = 'CONVERTED' THEN 1 END) as converted
+        FROM "leads"
+        WHERE "updatedAt" >= ${startDate}
+        AND status IN ('QUALIFIED', 'CONVERTED')
+        ${instanceFilter}
+        GROUP BY DATE_TRUNC('day', "updatedAt")
+        ORDER BY day ASC
+      `
+    );
 
     // Monta array de dias
     const result: DailyAnalytics[] = [];
