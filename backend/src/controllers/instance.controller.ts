@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { instanceService } from '../services/instance.service';
+import { evolutionRequest } from '../config/evolution';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
@@ -80,7 +81,19 @@ export const instanceController = {
     const { id } = request.params as { id: string };
 
     try {
+      // Busca o nome antes de deletar (para chamar a Evolution API)
+      const instance = await instanceService.findById(id);
+      if (!instance) {
+        return reply.status(404).send({ error: 'Instance not found' });
+      }
+
+      // Deleta no backend (DB)
       await instanceService.delete(id);
+
+      // Deleta na Evolution API (fire-and-forget — não falha o delete se a Evolution não responder)
+      evolutionRequest(instance.name, `instance/delete/${instance.name}`, { method: 'DELETE' })
+        .catch(err => console.warn(`[instance] Falha ao deletar "${instance.name}" na Evolution API:`, err));
+
       return reply.status(204).send();
     } catch {
       return reply.status(404).send({ error: 'Instance not found' });

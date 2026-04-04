@@ -9,6 +9,10 @@ const createAgentSchema = z.object({
   instanceId: z.string().uuid(),
   tone: z.string().optional(),
   language: z.string().optional(),
+  aiModel: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  historyLimit: z.number().int().min(1).max(50).optional(),
+  guardrails: z.string().optional(),
   humanInterventionEnabled: z.boolean().optional(),
 });
 
@@ -19,15 +23,17 @@ const updateAgentSchema = z.object({
   status: z.enum(['ACTIVE', 'PAUSED', 'STOPPED']).optional(),
   tone: z.string().optional(),
   language: z.string().optional(),
+  aiModel: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  historyLimit: z.number().int().min(1).max(50).optional(),
+  guardrails: z.string().optional(),
   humanInterventionEnabled: z.boolean().optional(),
 });
 
 export const agentController = {
   async create(request: FastifyRequest, reply: FastifyReply) {
-    const { name, instructions, systemPrompt, instanceId } = createAgentSchema.parse(request.body);
-
-    const agent = await agentService.create({ name, instructions, systemPrompt, instanceId });
-
+    const data = createAgentSchema.parse(request.body);
+    const agent = await agentService.create(data);
     return reply.status(201).send(agent);
   },
 
@@ -39,18 +45,15 @@ export const agentController = {
   async findById(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
     const agent = await agentService.findById(id);
-
     if (!agent) {
       return reply.status(404).send({ error: 'Agent not found' });
     }
-
     return reply.send(agent);
   },
 
   async update(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
     const data = updateAgentSchema.parse(request.body);
-
     try {
       const agent = await agentService.update(id, data);
       return reply.send(agent);
@@ -61,7 +64,6 @@ export const agentController = {
 
   async delete(request: FastifyRequest, reply: FastifyReply) {
     const { id } = request.params as { id: string };
-
     try {
       await agentService.delete(id);
       return reply.status(204).send();

@@ -255,23 +255,48 @@ export const webhookController = {
         });
 
         if (!aiReply) {
-          // AI pausada (humano atendendo, lead desqualificado, etc.)
           return;
         }
 
-        // Envia resposta via Evolution API
-        await messageService.sendWhatsAppMessage(instance.id, phoneNumber, aiReply);
+        // ── Atualiza status do lead se Claude indicou mudança ──────────────────
+        if (aiReply.newLeadStatus && aiReply.newLeadStatus !== lead.status) {
+          const validStatuses = ['NEW', 'QUALIFIED', 'CONVERTED', 'DISQUALIFIED'];
+          if (validStatuses.includes(aiReply.newLeadStatus)) {
+            await prisma.lead.update({
+              where: { id: lead.id },
+              data: { status: aiReply.newLeadStatus as any },
+            });
+            console.log(`[webhook] Lead ${lead.id} → ${aiReply.newLeadStatus}`);
 
-        // Salva mensagem enviada
-        await messageService.create({
-          content: aiReply,
-          direction: 'OUTBOUND',
-          conversationId: conversation.id,
-          instanceId: instance.id,
-          timestamp: new Date(),
-        });
+            // Analytics
+            if (aiReply.newLeadStatus === 'QUALIFIED') {
+              analyticsService.recordLeadQualified(instance.id).catch(() => {});
+            }
+          }
+        }
 
-        console.log(`[webhook] Resposta enviada para ${phoneNumber} na instância ${instance.name}`);
+        // ── Envia mensagens picotadas com delay entre os balões ────────────────
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        for (let i = 0; i < aiReply.messages.length; i++) {
+          const msg = aiReply.messages[i];
+          if (!msg) continue;
+
+          // Delay crescente entre balões (simula digitação)
+          if (i > 0) await delay(1200 + msg.length * 15);
+
+          await messageService.sendWhatsAppMessage(instance.id, phoneNumber, msg);
+
+          await messageService.create({
+            content: msg,
+            direction: 'OUTBOUND',
+            conversationId: conversation.id,
+            instanceId: instance.id,
+            timestamp: new Date(),
+          });
+        }
+
+        console.log(`[webhook] ${aiReply.messages.length} balão(s) enviados para ${phoneNumber}`);
 
       } catch (error) {
         console.error('[webhook] Erro no processamento assíncrono:', error);

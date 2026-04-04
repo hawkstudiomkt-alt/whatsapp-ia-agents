@@ -3,18 +3,18 @@ import { MessageDirection } from '@prisma/client';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TOKENS = 350;   // Respostas curtas → menos custo
+const MAX_TOKENS = 500; // Ligeiramente maior para acomodar o JSON + msgs
 
 // Modelos Claude válidos (mapeamento de IDs antigos/legados)
 const MODEL_MAP: Record<string, string> = {
-  'claude-haiku-4-5-20251001':        'claude-haiku-4-5-20251001',
-  'claude-sonnet-4-6':                'claude-sonnet-4-6',
-  'claude-opus-4-6':                  'claude-opus-4-6',
-  // Legados (OpenRouter) → Haiku
-  'anthropic/claude-3-haiku':         'claude-haiku-4-5-20251001',
-  'anthropic/claude-3-5-sonnet':      'claude-sonnet-4-6',
-  'openai/gpt-4o-mini':               'claude-haiku-4-5-20251001',
-  'openai/gpt-4o':                    'claude-sonnet-4-6',
+  'claude-haiku-4-5-20251001':   'claude-haiku-4-5-20251001',
+  'claude-sonnet-4-6':           'claude-sonnet-4-6',
+  'claude-opus-4-6':             'claude-opus-4-6',
+  // Legados → Haiku
+  'anthropic/claude-3-haiku':    'claude-haiku-4-5-20251001',
+  'anthropic/claude-3-5-sonnet': 'claude-sonnet-4-6',
+  'openai/gpt-4o-mini':          'claude-haiku-4-5-20251001',
+  'openai/gpt-4o':               'claude-sonnet-4-6',
 };
 
 function resolveModel(aiModel?: string | null): string {
@@ -27,6 +27,11 @@ interface AnthropicMessage {
   content: string;
 }
 
+export interface AIResponse {
+  messages: string[];          // Balões a enviar (picotado)
+  newLeadStatus?: string;      // Ex: 'QUALIFIED', 'DISQUALIFIED', 'CONVERTED'
+}
+
 interface ProcessMessageInput {
   conversationId: string;
   instanceId: string;
@@ -36,8 +41,8 @@ interface ProcessMessageInput {
   content: string;
   agentSystemPrompt: string;
   agentName: string;
-  agentModel?: string | null;   // modelo configurado no agente
-  agentHistoryLimit?: number;   // histórico configurado no agente
+  agentModel?: string | null;
+  agentHistoryLimit?: number;
   leadStatus: string;
   leadName: string | null;
   leadScore: number;
@@ -45,8 +50,25 @@ interface ProcessMessageInput {
 }
 
 /**
- * Monta o system prompt compacto baseado no status do lead.
- * Prompt curto = menos tokens de input.
+ * Instrução de formato de saída JSON — adicionada ao final de todo system prompt.
+ * Haiku é bom em seguir formatos simples quando a instrução é clara.
+ */
+const OUTPUT_FORMAT = `
+## FORMATO DE RESPOSTA (OBRIGATÓRIO)
+Sempre responda APENAS com JSON válido, sem texto fora do JSON:
+{"msgs":["balão1","balão2"],"status":"NOVO_STATUS"}
+
+Regras:
+- "msgs": array de 1 a 3 strings, cada uma com máx 120 caracteres
+- "status": opcional, use APENAS se o status do lead mudar:
+  - "QUALIFIED" → lead demonstrou interesse real
+  - "CONVERTED" → lead confirmou compra/pagamento
+  - "DISQUALIFIED" → lead disse explicitamente que não quer
+- Se não mudar o status, omita o campo "status"
+- NUNCA coloque texto fora do JSON`;
+
+/**
+ * Monta system prompt com contexto do lead e instrução de formato.
  */
 function buildSystemPrompt(
   agentSystemPrompt: string,
@@ -58,18 +80,18 @@ function buildSystemPrompt(
 
   let roleContext = '';
   if (leadStatus === 'CONVERTED') {
-    roleContext = `Você está atendendo ${name} em suporte pós-venda. Seja prestativo e resolva dúvidas de quem já é cliente. Não tente vender novamente.`;
+    roleContext = `\n\n## CONTEXTO DO LEAD\n${name} já é cliente confirmado. Foque em suporte pós-venda. Não tente vender novamente.`;
+  } else if (leadStatus === 'QUALIFIED') {
+    roleContext = `\n\n## CONTEXTO DO LEAD\n${name} já demonstrou interesse (score: ${leadScore}/100). Conduza para conversão.`;
   } else {
-    // NEW ou QUALIFIED
-    roleContext = `Você está conversando com ${name} (score: ${leadScore}/100). Qualifique o interesse, entenda a necessidade e guie para conversão. Seja direto e amigável.`;
+    roleContext = `\n\n## CONTEXTO DO LEAD\n${name} é um novo contato (score: ${leadScore}/100). Qualifique o interesse com naturalidade.`;
   }
 
-  return `${agentSystemPrompt}\n\n${roleContext}\n\nRegras: respostas curtas (máx 3 parágrafos), em português, sem asteriscos excessivos. Nunca mencione que é uma IA a menos que perguntado diretamente.`;
+  return agentSystemPrompt + roleContext + OUTPUT_FORMAT;
 }
 
 /**
  * Busca histórico da conversa e converte para formato Anthropic.
- * Limita ao historyLimit configurado no agente para economizar tokens.
  */
 async function buildHistory(conversationId: string, limit: number): Promise<AnthropicMessage[]> {
   const messages = await prisma.message.findMany({
@@ -79,7 +101,6 @@ async function buildHistory(conversationId: string, limit: number): Promise<Anth
     select: { content: true, direction: true },
   });
 
-  // Reverte para ordem cronológica
   return messages
     .reverse()
     .map(m => ({
@@ -89,17 +110,16 @@ async function buildHistory(conversationId: string, limit: number): Promise<Anth
 }
 
 /**
- * Chama a API da Anthropic via fetch nativo.
- * Suporta qualquer modelo Claude configurado no agente.
+ * Chama Anthropic API e parseia a resposta JSON estruturada.
  */
 async function callClaude(
   model: string,
   systemPrompt: string,
   messages: AnthropicMessage[]
-): Promise<string> {
+): Promise<AIResponse> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey || apiKey === 'your-anthropic-api-key') {
-    throw new Error('ANTHROPIC_API_KEY não configurada — adicione a chave no painel do EasyPanel');
+    throw new Error('ANTHROPIC_API_KEY não configurada');
   }
 
   const response = await fetch(ANTHROPIC_API_URL, {
@@ -127,23 +147,45 @@ async function callClaude(
     usage?: { input_tokens: number; output_tokens: number };
   };
 
-  const text = data.content.find(c => c.type === 'text')?.text;
-  if (!text) throw new Error('Resposta vazia da Anthropic');
-
-  // Log de uso de tokens para monitoramento de custo
   if (data.usage) {
     console.log(`[ai] Tokens — input: ${data.usage.input_tokens} | output: ${data.usage.output_tokens} | modelo: ${model}`);
   }
 
-  return text.trim();
+  const raw = data.content.find(c => c.type === 'text')?.text?.trim() || '';
+
+  // Tenta parsear JSON estruturado
+  try {
+    // Remove markdown code blocks se houver
+    const clean = raw.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(clean) as { msgs?: string[]; status?: string };
+
+    const msgs = Array.isArray(parsed.msgs) && parsed.msgs.length > 0
+      ? parsed.msgs.map((m: string) => String(m).trim()).filter(Boolean)
+      : [raw]; // fallback: usa o texto bruto
+
+    return {
+      messages: msgs.slice(0, 3), // máx 3 balões
+      newLeadStatus: parsed.status || undefined,
+    };
+  } catch {
+    // Fallback se Claude não retornar JSON válido: split por \n\n
+    console.warn('[ai] Resposta não é JSON válido, usando fallback de split');
+    const msgs = raw
+      .split(/\n\n+/)
+      .map((m: string) => m.trim())
+      .filter(Boolean)
+      .slice(0, 3);
+
+    return { messages: msgs.length > 0 ? msgs : [raw] };
+  }
 }
 
 export const aiService = {
   /**
-   * Processa uma mensagem do lead e gera resposta via Claude.
-   * Retorna null se o AI não deve responder (DISQUALIFIED, humano, etc.)
+   * Processa mensagem do lead e retorna balões picotados + novo status se mudar.
+   * Retorna null se o AI não deve responder.
    */
-  async processMessage(input: ProcessMessageInput): Promise<string | null> {
+  async processMessage(input: ProcessMessageInput): Promise<AIResponse | null> {
     const {
       conversationId,
       agentSystemPrompt,
@@ -156,25 +198,20 @@ export const aiService = {
       content,
     } = input;
 
-    // Não responde se humano está atendendo
     if (isHumanHandling) {
       console.log('[ai] Conversa em atendimento humano — AI pausada');
       return null;
     }
 
-    // Não responde para leads desqualificados
     if (leadStatus === 'DISQUALIFIED') {
       console.log('[ai] Lead DISQUALIFIED — AI pausada');
       return null;
     }
 
     const model = resolveModel(agentModel);
-    const historyLimit = Math.max(4, Math.min(agentHistoryLimit, 20)); // entre 4 e 20
+    const historyLimit = Math.max(4, Math.min(agentHistoryLimit, 20));
 
-    // Monta system prompt compacto
     const systemPrompt = buildSystemPrompt(agentSystemPrompt, leadStatus, leadName, leadScore);
-
-    // Busca histórico
     const history = await buildHistory(conversationId, historyLimit);
 
     // Garante que a mensagem atual está no final
@@ -183,9 +220,9 @@ export const aiService = {
       history.push({ role: 'user', content });
     }
 
-    const reply = await callClaude(model, systemPrompt, history);
+    const result = await callClaude(model, systemPrompt, history);
 
-    console.log(`[ai] ${model} respondeu (${reply.length} chars) para conv ${conversationId}`);
-    return reply;
+    console.log(`[ai] ${model} → ${result.messages.length} balão(s) | status: ${result.newLeadStatus || 'sem mudança'}`);
+    return result;
   },
 };

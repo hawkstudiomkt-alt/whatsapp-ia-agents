@@ -6,6 +6,12 @@ interface CreateAgentDTO {
   instructions: string;
   systemPrompt: string;
   instanceId: string;
+  tone?: string;
+  language?: string;
+  aiModel?: string;
+  temperature?: number;
+  historyLimit?: number;
+  guardrails?: string;
 }
 
 interface UpdateAgentDTO {
@@ -13,6 +19,13 @@ interface UpdateAgentDTO {
   instructions?: string;
   systemPrompt?: string;
   status?: AgentStatus;
+  tone?: string;
+  language?: string;
+  aiModel?: string;
+  temperature?: number;
+  historyLimit?: number;
+  guardrails?: string;
+  humanInterventionEnabled?: boolean;
 }
 
 export const agentService = {
