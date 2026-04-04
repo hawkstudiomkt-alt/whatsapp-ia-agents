@@ -3,26 +3,19 @@ import { instanceService } from '../services/instance.service';
 import { messageService } from '../services/message.service';
 import { leadService } from '../services/lead.service';
 import { analyticsService } from '../services/analytics.service';
+import { aiService } from '../services/ai.service';
 import { prisma } from '../config/database';
 import { EvolutionWebhook } from '../types';
+import { LeadStatus } from '@prisma/client';
 
-// Chama o n8n de forma assíncrona (fire-and-forget) — não bloqueia a resposta ao Evolution
-async function triggerN8n(payload: Record<string, unknown>) {
-  const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
-  if (!n8nWebhookUrl) return;
+// ──────────────────────────────────────────────────────────────────────────────
+// Helpers internos
+// ──────────────────────────────────────────────────────────────────────────────
 
-  try {
-    await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-  } catch (err) {
-    console.error('[webhook] Falha ao chamar n8n:', err);
-  }
-}
-
-// Dispara o alerta de lead quente para o n8n quando score >= 70 ou status muda para QUALIFIED
+/**
+ * Dispara alerta de lead quente para o n8n (fire-and-forget).
+ * N8n ainda cuida de alertas, relatórios e campanhas — apenas o agente IA foi movido para cá.
+ */
 async function triggerHotLeadAlert(leadId: string, reason: string) {
   const alertUrl = process.env.N8N_HOT_LEAD_WEBHOOK_URL;
   if (!alertUrl) return;
@@ -40,8 +33,8 @@ async function triggerHotLeadAlert(leadId: string, reason: string) {
 }
 
 /**
- * Auto-qualifica o lead com base na mensagem recebida e histórico da conversa.
- * Executado de forma assíncrona (fire-and-forget) para não bloquear a resposta.
+ * Auto-qualifica lead com base na mensagem recebida.
+ * Assíncrono (fire-and-forget) para não bloquear a resposta ao Evolution.
  */
 async function autoQualifyLead(
   lead: { id: string; status: string; score: number | null; email: string | null; name: string | null },
@@ -51,7 +44,6 @@ async function autoQualifyLead(
 ) {
   const updates: Record<string, unknown> = {};
 
-  // Extrai informações da mensagem (email, intenção de compra, etc.)
   const extracted = await leadService.extractLeadInfo(content);
 
   if (extracted.email && !lead.email) {
@@ -64,25 +56,22 @@ async function autoQualifyLead(
     updates.score = Math.min(100, currentScore);
   }
 
-  // Conta mensagens para checar qualificação por volume
   const msgCount = await prisma.message.count({ where: { conversationId } });
 
-  // Verifica se deve qualificar
   if (lead.status === 'NEW') {
     const candidate = {
       ...lead,
+      status: lead.status as LeadStatus,
       score: currentScore,
       email: (extracted.email as string | undefined) || lead.email || undefined,
     };
     if (leadService.shouldQualify(candidate, msgCount)) {
       updates.status = 'QUALIFIED';
       await analyticsService.recordLeadQualified(instanceId);
-      // Dispara alerta de lead quente no n8n (fire-and-forget)
       triggerHotLeadAlert(lead.id, 'Lead qualificado automaticamente pela IA').catch(() => {});
     }
   }
 
-  // Alerta também quando score sobe muito (>= 70) mesmo sem mudar de status
   if (!updates.status && currentScore >= 70 && (lead.score || 0) < 70) {
     triggerHotLeadAlert(lead.id, `Score atingiu ${currentScore}/100`).catch(() => {});
   }
@@ -91,6 +80,10 @@ async function autoQualifyLead(
     await prisma.lead.update({ where: { id: lead.id }, data: updates });
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Controller principal
+// ──────────────────────────────────────────────────────────────────────────────
 
 export const webhookController = {
   async handle(request: FastifyRequest, reply: FastifyReply) {
@@ -112,8 +105,7 @@ export const webhookController = {
       return reply.status(200).send({ received: true, warning: 'Instance not found' });
     }
 
-    // Normaliza o nome do evento para suportar Evolution API v1 (connection.update)
-    // e v2 (CONNECTION_UPDATE) transparentemente
+    // Normaliza o evento (v1: connection.update / v2: CONNECTION_UPDATE)
     const eventName = (body.event || '').toLowerCase().replace(/_/g, '.');
 
     // Trata atualização de conexão
@@ -129,12 +121,14 @@ export const webhookController = {
       return reply.status(200).send({ received: true });
     }
 
-    // Ignora mensagens enviadas pelo próprio número
+    // ── Filtros de mensagem ────────────────────────────────────────────────────
+
+    // Ignora mensagens enviadas pelo próprio número (evita loop com follow-ups/campanhas)
     if (body.data?.key?.fromMe) {
       return reply.status(200).send({ received: true });
     }
 
-    // Ignora mensagens de grupos
+    // Ignora grupos
     if (body.data?.key?.remoteJid?.endsWith('@g.us')) {
       return reply.status(200).send({ received: true, warning: 'Group message ignored' });
     }
@@ -144,7 +138,7 @@ export const webhookController = {
       return reply.status(200).send({ received: true });
     }
 
-    // Processa apenas mensagens (aceita MESSAGES_UPSERT e messages.upsert)
+    // Processa apenas messages.upsert
     if (eventName !== 'messages.upsert') {
       return reply.status(200).send({ received: true });
     }
@@ -158,103 +152,130 @@ export const webhookController = {
       return reply.status(200).send({ received: true });
     }
 
-    try {
-      const phoneNumber = body.data.key.remoteJid
-        .replace('@s.whatsapp.net', '')
-        .replace(/\D/g, '');
+    // ── Responde ao Evolution imediatamente ────────────────────────────────────
+    // Todo processamento pesado acontece após o reply para não travar o Evolution API
+    reply.status(200).send({ received: true });
 
-      const pushName = body.data.pushName;
+    // ── Processamento assíncrono ───────────────────────────────────────────────
+    setImmediate(async () => {
+      try {
+        const phoneNumber = body.data.key.remoteJid
+          .replace('@s.whatsapp.net', '')
+          .replace(/\D/g, '');
+        const pushName = body.data.pushName;
 
-      // Busca ou cria lead
-      let lead = await prisma.lead.findFirst({
-        where: { instanceId: instance.id, phone: phoneNumber },
-      });
-
-      if (!lead) {
-        lead = await prisma.lead.create({
-          data: {
-            phone: phoneNumber,
-            name: pushName,
-            instanceId: instance.id,
-            status: 'NEW',
-          },
-        });
-      }
-
-      // Busca conversa ativa para este número
-      let conversation = await prisma.conversation.findFirst({
-        where: { instanceId: instance.id, phone: phoneNumber, status: 'ACTIVE' },
-        include: { agent: true },
-      });
-
-      if (!conversation) {
-        const activeAgent = await prisma.agent.findFirst({
-          where: { instanceId: instance.id, status: 'ACTIVE' },
+        // Busca ou cria lead
+        let lead = await prisma.lead.findFirst({
+          where: { instanceId: instance.id, phone: phoneNumber },
         });
 
-        if (!activeAgent) {
-          return reply.status(200).send({ received: true, warning: 'No active agent' });
+        if (!lead) {
+          lead = await prisma.lead.create({
+            data: {
+              phone: phoneNumber,
+              name: pushName,
+              instanceId: instance.id,
+              status: 'NEW',
+            },
+          });
         }
 
-        // Usa upsert para evitar erro de unique constraint caso exista conversa fechada
-        conversation = await prisma.conversation.upsert({
-          where: {
-            instanceId_phone: { instanceId: instance.id, phone: phoneNumber },
-          },
-          create: {
-            phone: phoneNumber,
-            agentId: activeAgent.id,
-            instanceId: instance.id,
-            status: 'ACTIVE',
-          },
-          update: {
-            status: 'ACTIVE',
-            agentId: activeAgent.id,
-            isHumanHandling: false,
-            updatedAt: new Date(),
-          },
+        // Busca conversa ativa
+        let conversation = await prisma.conversation.findFirst({
+          where: { instanceId: instance.id, phone: phoneNumber, status: 'ACTIVE' },
           include: { agent: true },
         });
+
+        if (!conversation) {
+          const activeAgent = await prisma.agent.findFirst({
+            where: { instanceId: instance.id, status: 'ACTIVE' },
+          });
+
+          if (!activeAgent) {
+            console.log(`[webhook] Sem agente ativo para instância ${instance.name}`);
+            return;
+          }
+
+          conversation = await prisma.conversation.upsert({
+            where: {
+              instanceId_phone: { instanceId: instance.id, phone: phoneNumber },
+            },
+            create: {
+              phone: phoneNumber,
+              agentId: activeAgent.id,
+              instanceId: instance.id,
+              status: 'ACTIVE',
+            },
+            update: {
+              status: 'ACTIVE',
+              agentId: activeAgent.id,
+              isHumanHandling: false,
+              updatedAt: new Date(),
+            },
+            include: { agent: true },
+          });
+        }
+
+        // Salva mensagem recebida
+        await messageService.create({
+          content,
+          direction: 'INBOUND',
+          conversationId: conversation.id,
+          instanceId: instance.id,
+          timestamp: new Date(),
+        });
+
+        // Auto-qualificação (fire-and-forget)
+        autoQualifyLead(lead, content, conversation.id, instance.id).catch(err =>
+          console.error('[webhook] Erro na auto-qualificação:', err)
+        );
+
+        // ── Gera resposta via Claude Haiku ──────────────────────────────────────
+        const agent = (conversation as any).agent;
+        if (!agent) {
+          console.log('[webhook] Sem agente na conversa — AI ignorada');
+          return;
+        }
+
+        const aiReply = await aiService.processMessage({
+          conversationId: conversation.id,
+          instanceId: instance.id,
+          leadId: lead.id,
+          phoneNumber,
+          pushName,
+          content,
+          agentSystemPrompt: agent.systemPrompt || agent.instructions || '',
+          agentName: agent.name,
+          agentModel: agent.aiModel,
+          agentHistoryLimit: agent.historyLimit || 10,
+          leadStatus: lead.status,
+          leadName: lead.name,
+          leadScore: lead.score || 0,
+          isHumanHandling: (conversation as any).isHumanHandling || false,
+        });
+
+        if (!aiReply) {
+          // AI pausada (humano atendendo, lead desqualificado, etc.)
+          return;
+        }
+
+        // Envia resposta via Evolution API
+        await messageService.sendWhatsAppMessage(instance.id, phoneNumber, aiReply);
+
+        // Salva mensagem enviada
+        await messageService.create({
+          content: aiReply,
+          direction: 'OUTBOUND',
+          conversationId: conversation.id,
+          instanceId: instance.id,
+          timestamp: new Date(),
+        });
+
+        console.log(`[webhook] Resposta enviada para ${phoneNumber} na instância ${instance.name}`);
+
+      } catch (error) {
+        console.error('[webhook] Erro no processamento assíncrono:', error);
       }
-
-      // Salva mensagem recebida
-      await messageService.create({
-        content,
-        direction: 'INBOUND',
-        conversationId: conversation.id,
-        instanceId: instance.id,
-        timestamp: new Date(),
-      });
-
-      // ── Auto-qualificação de leads ─────────────────────────────────────────
-      // Roda de forma assíncrona para não atrasar a resposta ao Evolution
-      autoQualifyLead(lead, content, conversation.id, instance.id).catch(err =>
-        console.error('[webhook] Erro na auto-qualificação:', err)
-      );
-
-      // Dispara o n8n de forma assíncrona com todos os dados necessários
-      const n8nPayload = {
-        conversationId: conversation.id,
-        leadId: lead.id,
-        instanceId: instance.id,
-        instanceName: instance.name,
-        agentId: conversation.agentId,
-        phoneNumber,
-        pushName,
-        content,
-      };
-
-      // Não aguarda — responde ao Evolution imediatamente
-      triggerN8n(n8nPayload);
-
-      return reply.status(200).send({
-        received: true,
-        ...n8nPayload,
-      });
-
-    } catch (error: unknown) {
-      console.error('Erro no webhook:', error);
-      return reply.status(200).send({ received: true, error: 'Processing failed' });
-    }
+    });
   },
 };

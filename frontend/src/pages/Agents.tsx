@@ -10,24 +10,16 @@ import {
 } from 'lucide-react';
 import { Card, Button, Badge, LoadingSpinner } from '../components/ui';
 
-// ─── AI Models ───────────────────────────────────────────────────────────────
+// ─── AI Models (Claude via Anthropic API) ────────────────────────────────────
 const AI_MODELS = [
-  { group: 'Rápidos e Econômicos', models: [
-    { value: 'openai/gpt-4o-mini',                label: 'GPT-4o Mini',       provider: 'OpenAI' },
-    { value: 'google/gemini-flash-1.5',           label: 'Gemini 1.5 Flash',  provider: 'Google' },
-    { value: 'meta-llama/llama-3.1-8b-instruct',  label: 'Llama 3.1 8B',      provider: 'Meta' },
-    { value: 'mistralai/mistral-7b-instruct',     label: 'Mistral 7B',        provider: 'Mistral' },
+  { group: 'Econômico — Recomendado', models: [
+    { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku', provider: 'Anthropic', note: 'Rápido · Baixo custo' },
   ]},
-  { group: 'Alta Qualidade', models: [
-    { value: 'openai/gpt-4o',                     label: 'GPT-4o',            provider: 'OpenAI' },
-    { value: 'anthropic/claude-3-haiku',          label: 'Claude 3 Haiku',    provider: 'Anthropic' },
-    { value: 'anthropic/claude-3-5-sonnet',       label: 'Claude 3.5 Sonnet', provider: 'Anthropic' },
-    { value: 'google/gemini-pro-1.5',             label: 'Gemini 1.5 Pro',    provider: 'Google' },
+  { group: 'Balanceado', models: [
+    { value: 'claude-sonnet-4-6',         label: 'Claude Sonnet', provider: 'Anthropic', note: 'Melhor qualidade' },
   ]},
-  { group: 'Modelos Grandes', models: [
-    { value: 'meta-llama/llama-3.1-70b-instruct',  label: 'Llama 3.1 70B',   provider: 'Meta' },
-    { value: 'meta-llama/llama-3.1-405b-instruct', label: 'Llama 3.1 405B',  provider: 'Meta' },
-    { value: 'mistralai/mixtral-8x7b-instruct',    label: 'Mixtral 8x7B',    provider: 'Mistral' },
+  { group: 'Máxima Capacidade', models: [
+    { value: 'claude-opus-4-6',           label: 'Claude Opus',   provider: 'Anthropic', note: 'Mais poderoso · Alto custo' },
   ]},
 ];
 
@@ -38,7 +30,7 @@ const PRESET_TEMPLATES = [
     description: 'Atendimento de pacientes, agendamentos e dúvidas médicas',
     defaults: {
       name: 'Sofia — Atendente da Clínica', tone: 'empathetic', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.6, historyLimit: 15,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.6, historyLimit: 15,
       systemPrompt: `# Identidade\nVocê é **Sofia**, assistente virtual de uma clínica de saúde. Empática, profissional e acolhedora.\n\n# Missão\n- Agendamento, cancelamento e confirmação de consultas\n- Informações sobre especialidades e médicos disponíveis\n- Orientações sobre preparo para exames\n\n# Regras Obrigatórias\n- NUNCA faça diagnósticos médicos ou prescreva medicamentos\n- Em emergências, instrua a ligar 192 (SAMU)`,
       instructions: `1. Cumprimente o paciente com gentileza\n2. Identifique o que ele precisa\n3. Para agendamentos: pergunte especialidade e disponibilidade\n4. Confirme todas as informações antes de finalizar`,
       guardrails: `Não faça diagnósticos. Não prescreva medicamentos. Em emergências, sempre redirecione para o SAMU (192).`,
@@ -49,7 +41,7 @@ const PRESET_TEMPLATES = [
     description: 'Assistente de vendas, catálogo, pedidos e suporte pós-venda',
     defaults: {
       name: 'Alex — Assistente de Vendas', tone: 'enthusiastic', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.8, historyLimit: 10,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.8, historyLimit: 10,
       systemPrompt: `# Identidade\nVocê é **Alex**, assistente de vendas especializado. Entusiasta e focado em ajudar o cliente a encontrar a melhor solução.\n\n# Missão\n- Apresentar produtos, características e benefícios\n- Auxiliar o cliente na escolha do produto ideal\n- Acompanhar pedidos e prazos de entrega`,
       instructions: `1. Cumprimente e entenda o que o cliente procura\n2. Apresente as opções mais relevantes com benefícios claros\n3. Responda dúvidas sobre produto, prazo e pagamento\n4. Finalize com estimativa de entrega`,
       guardrails: `Não prometa descontos além da política da empresa. Não confirme pedidos sem verificar estoque.`,
@@ -60,7 +52,7 @@ const PRESET_TEMPLATES = [
     description: 'Consultor imobiliário: imóveis, visitas e financiamento',
     defaults: {
       name: 'Carlos — Consultor Imobiliário', tone: 'professional', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.7, historyLimit: 12,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.7, historyLimit: 12,
       systemPrompt: `# Identidade\nVocê é **Carlos**, consultor imobiliário virtual. Profissional e confiável.\n\n# Missão\n- Apresentar imóveis para venda e locação\n- Qualificar necessidades e perfil financeiro do cliente\n- Agendar visitas e orientar sobre financiamento`,
       instructions: `1. Cumprimente e descubra o objetivo do cliente\n2. Qualifique: tipo, localização, orçamento, prazo\n3. Apresente as opções mais adequadas\n4. Ofereça agendamento de visita`,
       guardrails: `Não forneça avaliações jurídicas. Não confirme disponibilidade sem verificar.`,
@@ -71,7 +63,7 @@ const PRESET_TEMPLATES = [
     description: 'Pedidos, cardápio, delivery e reservas de mesa',
     defaults: {
       name: 'Mari — Atendente do Restaurante', tone: 'friendly', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.8, historyLimit: 8,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.8, historyLimit: 8,
       systemPrompt: `# Identidade\nVocê é **Mari**, atendente virtual do restaurante. Simpática, ágil e apaixonada pela boa comida.\n\n# Missão\n- Apresentar o cardápio, pratos especiais e combinações\n- Registrar pedidos para delivery, retirada ou reserva de mesa\n- Informar sobre tempo de entrega e área de cobertura`,
       instructions: `1. Cumprimente com entusiasmo\n2. Identifique o tipo: delivery, retirada ou reserva\n3. Apresente o cardápio e destaques do dia\n4. Registre o pedido com todos os detalhes\n5. Confirme valor, tempo e método de pagamento`,
       guardrails: `Não confirme pedidos fora da área de entrega. Não prometa descontos não autorizados.`,
@@ -82,7 +74,7 @@ const PRESET_TEMPLATES = [
     description: 'Help desk, troubleshooting e abertura de tickets',
     defaults: {
       name: 'Max — Especialista de Suporte', tone: 'calm', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.5, historyLimit: 15,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.5, historyLimit: 15,
       systemPrompt: `# Identidade\nVocê é **Max**, especialista de suporte técnico. Paciente, preciso e focado em resolver problemas.\n\n# Missão\n- Diagnosticar e resolver problemas técnicos com clareza\n- Guiar o usuário passo a passo\n- Abrir tickets quando necessário`,
       instructions: `1. Cumprimente e peça para descrever o problema\n2. Colete: dispositivo, sistema, quando começou\n3. Tente a solução mais simples primeiro\n4. Guie passo a passo, aguardando confirmação a cada etapa`,
       guardrails: `Não acesse remotamente nenhum dispositivo. Não solicite senhas.`,
@@ -93,7 +85,7 @@ const PRESET_TEMPLATES = [
     description: 'Orientação acadêmica, matrículas e dúvidas sobre cursos',
     defaults: {
       name: 'Ana — Assistente Acadêmica', tone: 'friendly', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.7, historyLimit: 10,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.7, historyLimit: 10,
       systemPrompt: `# Identidade\nVocê é **Ana**, assistente acadêmica virtual. Motivadora, organizada e dedicada ao sucesso dos alunos.\n\n# Missão\n- Informar sobre cursos, grades curriculares e cronogramas\n- Auxiliar no processo de matrícula\n- Orientar sobre bolsas e formas de pagamento`,
       instructions: `1. Identifique se é novo interessado ou aluno atual\n2. Para novos: apresente cursos e diferenciais\n3. Para alunos: personalize a resposta ao histórico\n4. Sempre informe os próximos passos claramente`,
       guardrails: `Não confirme aprovação/reprovação sem dados oficiais. Não prometa bolsas sem confirmação.`,
@@ -104,7 +96,7 @@ const PRESET_TEMPLATES = [
     description: 'SDR para venda de ingressos e captação para eventos',
     defaults: {
       name: 'Ana Clara — SDR de Eventos', tone: 'enthusiastic', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.82, historyLimit: 10,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.82, historyLimit: 10,
       systemPrompt: `# Identidade\nVocê é **Ana Clara**, atendente calorosa e entusiasmada da organização do evento. Sua abordagem é acolhimento genuíno + entusiasmo pelo evento. Nunca use pressão.\n\n# Estilo\nFrases curtas, linguagem simples, tom leve e natural — como alguém digitando rápido no WhatsApp.`,
       instructions: `1. Cumprimente com energia e identifique o interesse\n2. Apresente o evento de forma empolgante\n3. Identifique se vai sozinho ou quer trazer alguém\n4. Ofereça o link de compra de forma natural\n5. Encerre com entusiasmo e convite caloroso`,
       guardrails: `Não pressione o lead. Não invente informações sobre o evento. Não prometa reembolso sem verificar política.`,
@@ -115,7 +107,7 @@ const PRESET_TEMPLATES = [
     description: 'Comece do zero e crie seu agente único',
     defaults: {
       name: '', tone: 'friendly', language: 'pt-BR',
-      aiModel: 'openai/gpt-4o-mini', temperature: 0.7, historyLimit: 10,
+      aiModel: 'claude-haiku-4-5-20251001', temperature: 0.7, historyLimit: 10,
       systemPrompt: '', instructions: '', guardrails: '',
     },
   },
@@ -124,7 +116,7 @@ const PRESET_TEMPLATES = [
 const EMPTY_FORM = {
   name: '', instructions: '', systemPrompt: '', instanceId: '',
   tone: 'friendly', language: 'pt-BR', humanInterventionEnabled: true,
-  aiModel: 'openai/gpt-4o-mini', guardrails: '',
+  aiModel: 'claude-haiku-4-5-20251001', guardrails: '',
   transcriptionEnabled: false, transcriptionModel: 'google/gemini-flash-1.5',
   temperature: 0.7, historyLimit: 10,
 };
@@ -207,7 +199,7 @@ export default function Agents() {
       name: agent.name, instructions: agent.instructions, systemPrompt: agent.systemPrompt,
       instanceId: agent.instanceId, tone: agent.tone || 'friendly', language: agent.language || 'pt-BR',
       humanInterventionEnabled: (agent as any).humanInterventionEnabled ?? true,
-      aiModel: agent.aiModel || 'openai/gpt-4o-mini', guardrails: (agent as any).guardrails || '',
+      aiModel: agent.aiModel || 'claude-haiku-4-5-20251001', guardrails: (agent as any).guardrails || '',
       transcriptionEnabled: agent.transcriptionEnabled ?? false,
       transcriptionModel: agent.transcriptionModel || 'google/gemini-flash-1.5',
       temperature: (agent as any).temperature ?? 0.7, historyLimit: (agent as any).historyLimit ?? 10,
@@ -312,7 +304,7 @@ export default function Agents() {
                         </Badge>
                       </div>
                       <p className="text-xs mt-1 font-mono-rattix" style={{ color: '#555' }}>
-                        {agent.instance?.name || 'Sem instância'} · {agent.aiModel}
+                        {agent.instance?.name || 'Sem instância'} · {AI_MODELS.flatMap(g => g.models).find(m => m.value === agent.aiModel)?.label || agent.aiModel || 'Claude Haiku'}
                       </p>
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         <Badge variant="purple">{TONE_OPTIONS.find(t => t.value === agent.tone)?.emoji || '😊'} {agent.tone}</Badge>
@@ -540,11 +532,13 @@ export default function Agents() {
                           <select value={formData.aiModel} onChange={e => setFormData({ ...formData, aiModel: e.target.value })} className={`${inputCls} font-mono-rattix`}>
                             {AI_MODELS.map(group => (
                               <optgroup key={group.group} label={group.group}>
-                                {group.models.map(m => <option key={m.value} value={m.value} style={{ background: '#141414' }}>{m.label} — {m.provider}</option>)}
+                                {group.models.map(m => <option key={m.value} value={m.value} style={{ background: '#141414' }}>{m.label} — {(m as any).note || m.provider}</option>)}
                               </optgroup>
                             ))}
                           </select>
-                          <p className="text-[10px] mt-1 font-mono-rattix" style={{ color: '#444' }}>{formData.aiModel}</p>
+                          <p className="text-[10px] mt-1 font-mono-rattix" style={{ color: '#444' }}>
+                            {AI_MODELS.flatMap(g => g.models).find(m => m.value === formData.aiModel)?.note || formData.aiModel}
+                          </p>
                         </div>
 
                         <div>
