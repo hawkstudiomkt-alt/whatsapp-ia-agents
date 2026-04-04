@@ -56,9 +56,7 @@ export const messageService = {
       method: 'POST',
       body: JSON.stringify({
         number,
-        textMessage: {
-          text: content,
-        },
+        text: content, // Evolution API v2.x: "text" direto, não "textMessage.text"
       }),
     });
   },
