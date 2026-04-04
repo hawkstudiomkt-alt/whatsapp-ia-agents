@@ -25,7 +25,8 @@ export const instanceService = {
       },
     });
 
-    // Configura instância e webhook automaticamente na Evolution API
+    // Configura instância + webhook na Evolution API em um único call (v2.x exige)
+    const webhookUrl = `${process.env.BACKEND_URL}/api/webhook/${apiKey}`;
     try {
       await evolutionRequest(instance.name, 'instance/create', {
         method: 'POST',
@@ -33,15 +34,9 @@ export const instanceService = {
           instanceName: instance.name,
           qrcode: true,
           integration: 'WHATSAPP-BAILEYS',
-        }),
-      });
-
-      await evolutionRequest(instance.name, `webhook/set/${instance.name}`, {
-        method: 'POST',
-        body: JSON.stringify({
           webhook: {
             enabled: true,
-            url: `${process.env.BACKEND_URL}/api/webhook/${apiKey}`,
+            url: webhookUrl,
             webhookByEvents: false,
             webhookBase64: false,
             events: ['CONNECTION_UPDATE', 'MESSAGES_UPSERT'],
@@ -49,9 +44,26 @@ export const instanceService = {
         }),
       });
 
-      console.log(`✅ Webhook configurado para instância ${instance.name}`);
+      console.log(`✅ Instância + webhook configurados para ${instance.name} → ${webhookUrl}`);
     } catch (e: any) {
-      console.log(`⚠️ Aviso ao configurar Evolution: ${e.message}`);
+      // Tenta fallback: set webhook separadamente (versões v1 da Evolution API)
+      try {
+        await evolutionRequest(instance.name, `webhook/set/${instance.name}`, {
+          method: 'POST',
+          body: JSON.stringify({
+            webhook: {
+              enabled: true,
+              url: webhookUrl,
+              webhookByEvents: false,
+              webhookBase64: false,
+              events: ['CONNECTION_UPDATE', 'MESSAGES_UPSERT'],
+            },
+          }),
+        });
+        console.log(`✅ Webhook configurado via fallback para ${instance.name}`);
+      } catch (e2: any) {
+        console.log(`⚠️ Aviso ao configurar webhook na Evolution: ${e2.message}`);
+      }
     }
 
     return instance;
